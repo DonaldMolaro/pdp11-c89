@@ -1,0 +1,70 @@
+# pdp11-c89
+
+A small C89 compiler targeting the PDP-11 simulator in `/Users/donaldmolaro/src/pdp-11`.
+
+## Build
+
+```sh
+make
+```
+
+## Run
+
+```sh
+./pdp11cc examples/hello.c -o examples/hello.asm
+/Users/donaldmolaro/src/pdp-11/build/pdp11sim examples/hello.asm
+```
+
+## True In-Sim Self Host
+
+The simulator has no filesystem, so the in-sim compiler reads a single combined
+input from stdin and writes asm to stdout. Use the simulator bootstrap files:
+
+1. Build a combined input on the host (adds per-file markers):
+```sh
+sh tools/mk_bootstrap_input.sh tests/bootstrap.c
+```
+
+2. Generate the in-sim compiler asm:
+```sh
+./pdp11cc tests/bootstrap.c -o tests/pdp11cc_sim.asm
+```
+
+3. Run the compiler inside the simulator (stdin -> stdout):
+```sh
+/Users/donaldmolaro/src/pdp-11/build/pdp11sim tests/pdp11cc_sim.asm < tests/bootstrap.c > tests/pdp11cc_sim_out.asm
+```
+
+## Stage-2 Check
+
+Run a stage-2 self-check by compiling the compiler twice in the simulator and
+diffing the outputs:
+
+```sh
+sh tools/run_stage2_check.sh
+```
+
+Notes:
+- `src/main_sim.c` splits the marked input into separate translation units.
+- `src/sim_support.c` provides minimal libc + allocator + printf formatting.
+- The helper script embeds headers and strips preprocessor lines.
+
+## Notes
+
+- Output is PDP-11 assembly for the simulator's built-in assembler.
+- The compiler currently targets a compact, K&R-style subset of C89.
+
+## Supported (current)
+
+- Types: `int`, `char`, `void`, pointers, fixed-size arrays, `struct`/`union`/`enum`, function declarations/definitions.
+- Statements: blocks, `if`/`else`, `while`, `for` (with declarations), `switch`/`case`/`default`, `break`, `continue`, `return`, declarations, expression statements.
+- Expressions: literals, variables, assignment (including struct/union), `+ - * / %`, `== != < <= > >=`, `&& || !`, bitwise `& | ^ ~`, shifts `<< >>`, unary `& * -`, `sizeof`.
+- Builtins: `putchar`, `getchar`, `puts` (via PDP-11 TRAPs).
+
+## Calling Convention
+
+- `R6` is stack pointer, stack grows downward.
+- `JSR R5, func` used for calls; `RTS R5` for returns.
+- Arguments pushed right-to-left; first arg at `4(R4)`.
+- Return value in `R0`.
+- Struct/union return uses an implicit first argument (sret pointer).
