@@ -66,6 +66,7 @@ int main(int argc, char **argv) {
     char *seg_start = NULL;
     Obj *all = NULL;
     int file_id = -1;
+    int in_file_block = 0;
 
     (void)argc;
     (void)argv;
@@ -77,12 +78,19 @@ int main(int argc, char **argv) {
     while (*p) {
         if (*p == '\n') {
             *p = '\0';
-            if (startswith(line, "//--FILE:")) {
+            if (startswith(line, "//--FILE:") || startswith(line, "FILE ")) {
                 if (file_id >= 0 && seg_start) {
                     parse_segment(seg_start, line - 1, file_id, &all);
                 }
                 file_id++;
                 seg_start = p + 1;
+                in_file_block = startswith(line, "FILE ");
+            } else if (in_file_block && startswith(line, "END")) {
+                if (seg_start) {
+                    parse_segment(seg_start, line - 1, file_id, &all);
+                }
+                seg_start = NULL;
+                in_file_block = 0;
             }
             *p = '\n';
             p++;

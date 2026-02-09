@@ -6,17 +6,179 @@ _start:
 main:
     MOV R4, -(R6)
     MOV R6, R4
+    SUB #38, R6
+    MOV R4, R0
+    ADD #-38, R0
+    MOV R0, -(R6)
+    MOV #.L.str1, R0
+    MOV R0, -(R6)
     MOV #.L.str0, R0
+    MOV R0, -(R6)
+    JSR R5, fopen
+    ADD #4, R6
+    MOV (R6)+, R1
+    MOV R0, (R1)
+    MOV R4, R0
+    ADD #-38, R0
+    MOV (R0), R0
+    TST R0
+    BNE .Lskip2
+    JMP .Ltrue1
+.Lskip2:
+    MOV #0, R0
+    JMP .Lend1
+.Ltrue1:
+    MOV #1, R0
+.Lend1:
+    TST R0
+    BNE .Lskip3
+    JMP .Lelse0
+.Lskip3:
+    MOV #.L.str2, R0
     MOV R0, -(R6)
     JSR R5, puts
     ADD #2, R6
-    MOV #5, R0
+    MOV #1, R0
+    JMP .Lreturn_main
+    JMP .Lend0
+.Lelse0:
+.Lend0:
+    MOV R4, R0
+    ADD #-4, R0
     MOV R0, -(R6)
-    JSR R5, print_int
+    MOV R4, R0
+    ADD #-38, R0
+    MOV (R0), R0
+    MOV R0, -(R6)
+    MOV #20, R0
+    MOV R0, -(R6)
+    MOV #1, R0
+    MOV R0, -(R6)
+    MOV #.L.str3, R0
+    MOV R0, -(R6)
+    JSR R5, fwrite
+    ADD #8, R6
+    MOV (R6)+, R1
+    MOV R0, (R1)
+    MOV #.L.str4, R0
+    MOV R0, -(R6)
+    JSR R5, puts
+    ADD #2, R6
+    MOV R4, R0
+    ADD #-4, R0
+    MOV (R0), R0
+    MOV R0, -(R6)
+    JSR R5, F0_print_int
     ADD #2, R6
     MOV #10, R0
     MOV R0, -(R6)
     JSR R5, putchar
+    ADD #2, R6
+    MOV R4, R0
+    ADD #-38, R0
+    MOV (R0), R0
+    MOV R0, -(R6)
+    JSR R5, fclose
+    ADD #2, R6
+    MOV R4, R0
+    ADD #-38, R0
+    MOV R0, -(R6)
+    MOV #.L.str6, R0
+    MOV R0, -(R6)
+    MOV #.L.str5, R0
+    MOV R0, -(R6)
+    JSR R5, fopen
+    ADD #4, R6
+    MOV (R6)+, R1
+    MOV R0, (R1)
+    MOV R4, R0
+    ADD #-38, R0
+    MOV (R0), R0
+    TST R0
+    BNE .Lskip6
+    JMP .Ltrue5
+.Lskip6:
+    MOV #0, R0
+    JMP .Lend5
+.Ltrue5:
+    MOV #1, R0
+.Lend5:
+    TST R0
+    BNE .Lskip7
+    JMP .Lelse4
+.Lskip7:
+    MOV #.L.str7, R0
+    MOV R0, -(R6)
+    JSR R5, puts
+    ADD #2, R6
+    MOV #1, R0
+    JMP .Lreturn_main
+    JMP .Lend4
+.Lelse4:
+.Lend4:
+    MOV R4, R0
+    ADD #-4, R0
+    MOV R0, -(R6)
+    MOV R4, R0
+    ADD #-38, R0
+    MOV (R0), R0
+    MOV R0, -(R6)
+    MOV #20, R0
+    MOV R0, -(R6)
+    MOV #1, R0
+    MOV R0, -(R6)
+    MOV R4, R0
+    ADD #-36, R0
+    MOV R0, -(R6)
+    JSR R5, fread
+    ADD #8, R6
+    MOV (R6)+, R1
+    MOV R0, (R1)
+    MOV R4, R0
+    ADD #-36, R0
+    MOV R0, -(R6)
+    MOV R4, R0
+    ADD #-4, R0
+    MOV (R0), R0
+    MOV (R6)+, R1
+    ADD R0, R1
+    MOV R1, R0
+    MOV R0, -(R6)
+    MOV #48, R0
+    MOV (R6)+, R1
+    MOVB R0, (R1)
+    MOV #.L.str8, R0
+    MOV R0, -(R6)
+    JSR R5, puts
+    ADD #2, R6
+    MOV R4, R0
+    ADD #-4, R0
+    MOV (R0), R0
+    MOV R0, -(R6)
+    JSR R5, F0_print_int
+    ADD #2, R6
+    MOV #10, R0
+    MOV R0, -(R6)
+    JSR R5, putchar
+    ADD #2, R6
+    MOV #.L.str9, R0
+    MOV R0, -(R6)
+    JSR R5, puts
+    ADD #2, R6
+    MOV R4, R0
+    ADD #-36, R0
+    MOV R0, -(R6)
+    JSR R5, puts
+    ADD #2, R6
+    MOV #10, R0
+    MOV R0, -(R6)
+    JSR R5, putchar
+    ADD #2, R6
+    MOV R4, R0
+    ADD #-38, R0
+    MOV (R0), R0
+    MOV R0, -(R6)
+    JSR R5, fclose
     ADD #2, R6
     MOV #0, R0
     JMP .Lreturn_main
@@ -24,7 +186,7 @@ main:
     MOV R4, R6
     MOV (R6)+, R4
     RTS R5
-print_int:
+F0_print_int:
     MOV R4, -(R6)
     MOV R6, R4
     MOV R4, R0
@@ -52,9 +214,9 @@ print_int:
     ASR R0
     BIC #0xFFFE, R0
     TST R0
-    BNE .Lskip2
-    JMP .Lelse0
-.Lskip2:
+    BNE .Lskip10
+    JMP .Lelse8
+.Lskip10:
     MOV #45, R0
     MOV R0, -(R6)
     JSR R5, putchar
@@ -70,9 +232,9 @@ print_int:
     SUB R1, R0
     MOV (R6)+, R1
     MOV R0, (R1)
-    JMP .Lend0
-.Lelse0:
-.Lend0:
+    JMP .Lend8
+.Lelse8:
+.Lend8:
     MOV R4, R0
     ADD #4, R0
     MOV (R0), R0
@@ -101,9 +263,9 @@ print_int:
     SUB R0, R1
     MOV R1, R0
     TST R0
-    BNE .Lskip5
-    JMP .Lelse3
-.Lskip5:
+    BNE .Lskip13
+    JMP .Lelse11
+.Lskip13:
     MOV #10, R0
     MOV R0, -(R6)
     MOV R4, R0
@@ -113,11 +275,11 @@ print_int:
     JSR R5, __div
     ADD #4, R6
     MOV R0, -(R6)
-    JSR R5, print_int
+    JSR R5, F0_print_int
     ADD #2, R6
-    JMP .Lend3
-.Lelse3:
-.Lend3:
+    JMP .Lend11
+.Lelse11:
+.Lend11:
     MOV #48, R0
     MOV R0, -(R6)
     MOV #10, R0
@@ -134,22 +296,113 @@ print_int:
     MOV R0, -(R6)
     JSR R5, putchar
     ADD #2, R6
-.Lreturn_print_int:
+.Lreturn_F0_print_int:
     MOV R4, R6
     MOV (R6)+, R4
     RTS R5
-.L.str0:
-    .WORD 0x6E69
-    .WORD 0x6C63
-    .WORD 0x6475
-    .WORD 0x5F65
-    .WORD 0x6E61
-    .WORD 0x6C67
-    .WORD 0x3A65
-    .WORD 0x7620
-    .WORD 0x6C61
-    .WORD 0x6575
+.L.str9:
+    .WORD 0x6966
+    .WORD 0x656C
+    .WORD 0x695F
+    .WORD 0x3A6F
+    .WORD 0x6320
+    .WORD 0x6E6F
+    .WORD 0x6574
+    .WORD 0x746E
+    .WORD 0x3D73
+    .WORD 0x000A
+.L.str8:
+    .WORD 0x6966
+    .WORD 0x656C
+    .WORD 0x695F
+    .WORD 0x3A6F
+    .WORD 0x7220
+    .WORD 0x6165
+    .WORD 0x2064
+    .WORD 0x7962
+    .WORD 0x6574
+    .WORD 0x3D73
+    .WORD 0x0000
+.L.str7:
+    .WORD 0x6966
+    .WORD 0x656C
+    .WORD 0x695F
+    .WORD 0x3A6F
+    .WORD 0x6F20
+    .WORD 0x6570
+    .WORD 0x286E
+    .WORD 0x6572
+    .WORD 0x6461
+    .WORD 0x2029
+    .WORD 0x6166
+    .WORD 0x6C69
+    .WORD 0x6465
+    .WORD 0x000A
+.L.str6:
+    .WORD 0x0072
+.L.str5:
+    .WORD 0x2F2E
+    .WORD 0x6470
+    .WORD 0x3170
+    .WORD 0x5F31
+    .WORD 0x6966
+    .WORD 0x656C
+    .WORD 0x695F
+    .WORD 0x2E6F
+    .WORD 0x7874
+    .WORD 0x0074
+.L.str4:
+    .WORD 0x6966
+    .WORD 0x656C
+    .WORD 0x695F
+    .WORD 0x3A6F
+    .WORD 0x7720
+    .WORD 0x6F72
+    .WORD 0x6574
+    .WORD 0x6220
+    .WORD 0x7479
+    .WORD 0x7365
     .WORD 0x003D
+.L.str3:
+    .WORD 0x6548
+    .WORD 0x6C6C
+    .WORD 0x206F
+    .WORD 0x7266
+    .WORD 0x6D6F
+    .WORD 0x5020
+    .WORD 0x5044
+    .WORD 0x312D
+    .WORD 0x2131
+    .WORD 0x000A
+.L.str2:
+    .WORD 0x6966
+    .WORD 0x656C
+    .WORD 0x695F
+    .WORD 0x3A6F
+    .WORD 0x6F20
+    .WORD 0x6570
+    .WORD 0x286E
+    .WORD 0x7277
+    .WORD 0x7469
+    .WORD 0x2965
+    .WORD 0x6620
+    .WORD 0x6961
+    .WORD 0x656C
+    .WORD 0x0A64
+    .WORD 0x0000
+.L.str1:
+    .WORD 0x0077
+.L.str0:
+    .WORD 0x2F2E
+    .WORD 0x6470
+    .WORD 0x3170
+    .WORD 0x5F31
+    .WORD 0x6966
+    .WORD 0x656C
+    .WORD 0x695F
+    .WORD 0x2E6F
+    .WORD 0x7874
+    .WORD 0x0074
 putchar:
     MOV R4, -(R6)
     MOV R6, R4

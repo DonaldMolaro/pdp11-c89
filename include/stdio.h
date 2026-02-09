@@ -24,6 +24,7 @@ int puts(const char *s);
 FILE *fopen(const char *path, const char *mode);
 int fclose(FILE *fp);
 size_t fread(void *ptr, size_t size, size_t nmemb, FILE *fp);
+size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *fp);
 int fseek(FILE *fp, long off, int whence);
 long ftell(FILE *fp);
 

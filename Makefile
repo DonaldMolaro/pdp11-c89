@@ -27,4 +27,21 @@ stage-2-smoke: pdp11cc
 	@echo "This will build bootstrap input, compile sim compiler, run two sim passes, and diff outputs."
 	sh -x tools/run_stage2_check.sh
 
-.PHONY: clean stage-2-smoke
+examples: pdp11cc
+	@echo "Running examples on PDP-11 sim..."
+	@cd examples && \
+	for f in *.c; do \
+		base=$${f%.c}; \
+		../pdp11cc $$f -o $$base.asm; \
+		echo "=== $$base ==="; \
+		/Users/donaldmolaro/src/pdp-11/build/pdp11sim $$base.asm | sed '/^HALT=/d;/^R[0-7]=/d;/^N=/d'; \
+		echo; \
+	done
+
+sim-input:
+	@echo "Building sim input file..."
+	@OUT=$${OUT:-tests/sim_input.txt}; \
+	FILES=$${FILES:-src/main_sim.c src/tokenize.c src/parser.c src/type.c src/ast.c src/sema.c src/codegen.c src/util.c src/sim_support.c}; \
+	tools/mk_sim_input.sh $$OUT $$FILES
+
+.PHONY: clean stage-2-smoke examples sim-input

@@ -166,42 +166,6 @@ int memcmp(const void *a, const void *b, size_t n) {
     return 0;
 }
 
-/* Minimal stdio stubs */
-FILE *fopen(const char *path, const char *mode) {
-    (void)path;
-    (void)mode;
-    return NULL;
-}
-
-int fclose(FILE *fp) {
-    (void)fp;
-    return 0;
-}
-
-size_t fread(void *ptr, size_t size, size_t nmemb, FILE *fp) {
-    (void)fp;
-    size_t total = size * nmemb;
-    size_t i = 0;
-    int c;
-    unsigned char *p = (unsigned char *)ptr;
-    while (i < total) {
-        c = getchar();
-        if (c == -1) break;
-        p[i++] = (unsigned char)c;
-    }
-    return (size == 0) ? 0 : (i / size);
-}
-
-int fseek(FILE *fp, long off, int whence) {
-    (void)fp; (void)off; (void)whence;
-    return -1;
-}
-
-long ftell(FILE *fp) {
-    (void)fp;
-    return -1;
-}
-
 /* Formatting */
 struct OutBuf {
     char *buf;

@@ -220,6 +220,147 @@ puts:
     MOV R4, R6
     MOV (R6)+, R4
     RTS R5
+fopen:
+    MOV R4, -(R6)
+    MOV R6, R4
+    MOV 4(R4), R0
+    MOV 6(R4), R1
+    MOVB (R1), R2
+    CMP #0x0072, R2
+    BEQ .Lfopen_r
+    CMP #0x0077, R2
+    BEQ .Lfopen_w
+    CMP #0x0061, R2
+    BEQ .Lfopen_a
+    CLR R1
+    BR .Lfopen_mode
+.Lfopen_r:
+    CLR R1
+    BR .Lfopen_chkplus
+.Lfopen_w:
+    MOV #1, R1
+    BR .Lfopen_chkplus
+.Lfopen_a:
+    MOV #2, R1
+.Lfopen_chkplus:
+    MOV 6(R4), R2
+    MOVB 1(R2), R2
+    CMP #0x002B, R2
+    BNE .Lfopen_mode
+    MOV #3, R1
+.Lfopen_mode:
+    TRAP #20
+    CMP #0xFFFF, R0
+    BEQ .Lfopen_fail
+    INC R0
+    BR .Lfopen_ret
+.Lfopen_fail:
+    CLR R0
+.Lfopen_ret:
+    MOV R4, R6
+    MOV (R6)+, R4
+    RTS R5
+fread:
+    MOV R4, -(R6)
+    MOV R6, R4
+    MOV 6(R4), R2
+    MOV 8(R4), R3
+    TST R2
+    BEQ .Lfread_zero
+    TST R3
+    BEQ .Lfread_zero
+    MOV R3, -(R6)
+    MOV R2, -(R6)
+    JSR R5, __mul
+    ADD #4, R6
+    MOV R0, R2
+    MOV 10(R4), R0
+    TST R0
+    BEQ .Lfread_zero
+    DEC R0
+    MOV 4(R4), R1
+    TRAP #21
+    MOV 6(R4), R1
+    CMP #1, R1
+    BEQ .Lfread_ret
+    MOV R1, -(R6)
+    MOV R0, -(R6)
+    JSR R5, __div
+    ADD #4, R6
+.Lfread_ret:
+    MOV R4, R6
+    MOV (R6)+, R4
+    RTS R5
+.Lfread_zero:
+    CLR R0
+    MOV R4, R6
+    MOV (R6)+, R4
+    RTS R5
+fwrite:
+    MOV R4, -(R6)
+    MOV R6, R4
+    MOV 6(R4), R2
+    MOV 8(R4), R3
+    TST R2
+    BEQ .Lfwrite_zero
+    TST R3
+    BEQ .Lfwrite_zero
+    MOV R3, -(R6)
+    MOV R2, -(R6)
+    JSR R5, __mul
+    ADD #4, R6
+    MOV R0, R2
+    MOV 10(R4), R0
+    TST R0
+    BEQ .Lfwrite_zero
+    DEC R0
+    MOV 4(R4), R1
+    TRAP #22
+    MOV 6(R4), R1
+    CMP #1, R1
+    BEQ .Lfwrite_ret
+    MOV R1, -(R6)
+    MOV R0, -(R6)
+    JSR R5, __div
+    ADD #4, R6
+.Lfwrite_ret:
+    MOV R4, R6
+    MOV (R6)+, R4
+    RTS R5
+.Lfwrite_zero:
+    CLR R0
+    MOV R4, R6
+    MOV (R6)+, R4
+    RTS R5
+fclose:
+    MOV R4, -(R6)
+    MOV R6, R4
+    MOV 4(R4), R0
+    TST R0
+    BEQ .Lfclose_bad
+    DEC R0
+    TRAP #23
+    BR .Lfclose_ret
+.Lfclose_bad:
+    MOV #0xFFFF, R0
+.Lfclose_ret:
+    MOV R4, R6
+    MOV (R6)+, R4
+    RTS R5
+fseek:
+    MOV R4, -(R6)
+    MOV R6, R4
+    MOV #0xFFFF, R0
+    MOV R4, R6
+    MOV (R6)+, R4
+    RTS R5
+ftell:
+    MOV R4, -(R6)
+    MOV R6, R4
+    MOV #0xFFFF, R0
+    MOV R4, R6
+    MOV (R6)+, R4
+    RTS R5
 __memcpy:
     MOV R4, -(R6)
     MOV R6, R4

@@ -742,6 +742,153 @@ static void emit_runtime(void) {
     emitln("    MOV (R6)+, R4");
     emitln("    RTS R5");
 
+    emitln("fopen:");
+    emitln("    MOV R4, -(R6)");
+    emitln("    MOV R6, R4");
+    emitln("    MOV 4(R4), R0"); /* path */
+    emitln("    MOV 6(R4), R1"); /* mode string */
+    emitln("    MOVB (R1), R2");
+    emitln("    CMP #0x0072, R2"); /* 'r' */
+    emitln("    BEQ .Lfopen_r");
+    emitln("    CMP #0x0077, R2"); /* 'w' */
+    emitln("    BEQ .Lfopen_w");
+    emitln("    CMP #0x0061, R2"); /* 'a' */
+    emitln("    BEQ .Lfopen_a");
+    emitln("    CLR R1");
+    emitln("    BR .Lfopen_mode");
+    emitln(".Lfopen_r:");
+    emitln("    CLR R1");
+    emitln("    BR .Lfopen_chkplus");
+    emitln(".Lfopen_w:");
+    emitln("    MOV #1, R1");
+    emitln("    BR .Lfopen_chkplus");
+    emitln(".Lfopen_a:");
+    emitln("    MOV #2, R1");
+    emitln(".Lfopen_chkplus:");
+    emitln("    MOV 6(R4), R2");
+    emitln("    MOVB 1(R2), R2");
+    emitln("    CMP #0x002B, R2"); /* '+' */
+    emitln("    BNE .Lfopen_mode");
+    emitln("    MOV #3, R1");
+    emitln(".Lfopen_mode:");
+    emitln("    TRAP #20");
+    emitln("    CMP #0xFFFF, R0");
+    emitln("    BEQ .Lfopen_fail");
+    emitln("    INC R0"); /* make handle non-NULL */
+    emitln("    BR .Lfopen_ret");
+    emitln(".Lfopen_fail:");
+    emitln("    CLR R0");
+    emitln(".Lfopen_ret:");
+    emitln("    MOV R4, R6");
+    emitln("    MOV (R6)+, R4");
+    emitln("    RTS R5");
+
+    emitln("fread:");
+    emitln("    MOV R4, -(R6)");
+    emitln("    MOV R6, R4");
+    emitln("    MOV 6(R4), R2"); /* size */
+    emitln("    MOV 8(R4), R3"); /* nmemb */
+    emitln("    TST R2");
+    emitln("    BEQ .Lfread_zero");
+    emitln("    TST R3");
+    emitln("    BEQ .Lfread_zero");
+    emitln("    MOV R3, -(R6)");
+    emitln("    MOV R2, -(R6)");
+    emitln("    JSR R5, __mul"); /* size * nmemb */
+    emitln("    ADD #4, R6");
+    emitln("    MOV R0, R2"); /* total bytes */
+    emitln("    MOV 10(R4), R0"); /* handle */
+    emitln("    TST R0");
+    emitln("    BEQ .Lfread_zero");
+    emitln("    DEC R0"); /* back to handle */
+    emitln("    MOV 4(R4), R1"); /* buf */
+    emitln("    TRAP #21");
+    emitln("    MOV 6(R4), R1"); /* size */
+    emitln("    CMP #1, R1");
+    emitln("    BEQ .Lfread_ret");
+    emitln("    MOV R1, -(R6)");
+    emitln("    MOV R0, -(R6)");
+    emitln("    JSR R5, __div"); /* bytes / size */
+    emitln("    ADD #4, R6");
+    emitln(".Lfread_ret:");
+    emitln("    MOV R4, R6");
+    emitln("    MOV (R6)+, R4");
+    emitln("    RTS R5");
+    emitln(".Lfread_zero:");
+    emitln("    CLR R0");
+    emitln("    MOV R4, R6");
+    emitln("    MOV (R6)+, R4");
+    emitln("    RTS R5");
+
+    emitln("fwrite:");
+    emitln("    MOV R4, -(R6)");
+    emitln("    MOV R6, R4");
+    emitln("    MOV 6(R4), R2"); /* size */
+    emitln("    MOV 8(R4), R3"); /* nmemb */
+    emitln("    TST R2");
+    emitln("    BEQ .Lfwrite_zero");
+    emitln("    TST R3");
+    emitln("    BEQ .Lfwrite_zero");
+    emitln("    MOV R3, -(R6)");
+    emitln("    MOV R2, -(R6)");
+    emitln("    JSR R5, __mul");
+    emitln("    ADD #4, R6");
+    emitln("    MOV R0, R2"); /* total bytes */
+    emitln("    MOV 10(R4), R0"); /* handle */
+    emitln("    TST R0");
+    emitln("    BEQ .Lfwrite_zero");
+    emitln("    DEC R0"); /* back to handle */
+    emitln("    MOV 4(R4), R1"); /* buf */
+    emitln("    TRAP #22");
+    emitln("    MOV 6(R4), R1"); /* size */
+    emitln("    CMP #1, R1");
+    emitln("    BEQ .Lfwrite_ret");
+    emitln("    MOV R1, -(R6)");
+    emitln("    MOV R0, -(R6)");
+    emitln("    JSR R5, __div");
+    emitln("    ADD #4, R6");
+    emitln(".Lfwrite_ret:");
+    emitln("    MOV R4, R6");
+    emitln("    MOV (R6)+, R4");
+    emitln("    RTS R5");
+    emitln(".Lfwrite_zero:");
+    emitln("    CLR R0");
+    emitln("    MOV R4, R6");
+    emitln("    MOV (R6)+, R4");
+    emitln("    RTS R5");
+
+    emitln("fclose:");
+    emitln("    MOV R4, -(R6)");
+    emitln("    MOV R6, R4");
+    emitln("    MOV 4(R4), R0"); /* handle */
+    emitln("    TST R0");
+    emitln("    BEQ .Lfclose_bad");
+    emitln("    DEC R0"); /* back to handle */
+    emitln("    TRAP #23");
+    emitln("    BR .Lfclose_ret");
+    emitln(".Lfclose_bad:");
+    emitln("    MOV #0xFFFF, R0");
+    emitln(".Lfclose_ret:");
+    emitln("    MOV R4, R6");
+    emitln("    MOV (R6)+, R4");
+    emitln("    RTS R5");
+
+    emitln("fseek:");
+    emitln("    MOV R4, -(R6)");
+    emitln("    MOV R6, R4");
+    emitln("    MOV #0xFFFF, R0");
+    emitln("    MOV R4, R6");
+    emitln("    MOV (R6)+, R4");
+    emitln("    RTS R5");
+
+    emitln("ftell:");
+    emitln("    MOV R4, -(R6)");
+    emitln("    MOV R6, R4");
+    emitln("    MOV #0xFFFF, R0");
+    emitln("    MOV R4, R6");
+    emitln("    MOV (R6)+, R4");
+    emitln("    RTS R5");
+
     emitln("__memcpy:");
     emitln("    MOV R4, -(R6)");
     emitln("    MOV R6, R4");
