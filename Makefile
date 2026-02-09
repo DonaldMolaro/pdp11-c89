@@ -29,12 +29,11 @@ stage-2-smoke: pdp11cc
 
 examples: pdp11cc
 	@echo "Running examples on PDP-11 sim..."
-	@cd examples && \
-	for f in *.c; do \
-		base=$${f%.c}; \
-		../pdp11cc $$f -o $$base.asm; \
+	@for f in examples/*.c; do \
+		base=$$(basename $$f .c); \
+		./pdp11cc $$f -o examples/$$base.asm; \
 		echo "=== $$base ==="; \
-		/Users/donaldmolaro/src/pdp-11/build/pdp11sim $$base.asm | sed '/^HALT=/d;/^R[0-7]=/d;/^N=/d'; \
+		/Users/donaldmolaro/src/pdp-11/build/pdp11sim examples/$$base.asm | sed '/^HALT=/d;/^R[0-7]=/d;/^N=/d'; \
 		echo; \
 	done
 
