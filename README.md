@@ -97,12 +97,21 @@ pdp11_set_bank(int bank);
 - `src/runtime.c`: Runtime dispatcher.
 - `src/runtime_startup.c`: Startup/data emission.
 - `src/runtime_helpers.c`: Shared runtime helpers for banked data access.
+- `src/runtime_emit.h`: Runtime emission API declarations.
 - `src/runtime_stdio.c`: stdio runtime helpers (TRAP-backed).
 - `src/runtime_format.c`: printf/scanf helpers.
 - `src/runtime_fileio.c`: file I/O helpers and PDP-11 TRAPs.
 - `src/runtime_math.c`: builtin math/bitwise helpers.
 - `src/emitter.c`: Shared `emitln()` and output setup.
 - `src/emit_utils.c`: Shared assembly emit helpers (stack push/pop).
+- `src/lex_literals.c`: Literal parsing helpers for the lexer.
+- `src/lex_literals.h`: Lexer literal helper declarations.
+- `src/parser_scope.c`: Parser scope stack helpers.
+- `src/ast_build.c`: AST construction helpers.
+- `src/sema_type.c`: Sema type annotation.
+- `src/sema_check.c`: Sema frame/offset checks.
+- `src/sema_const.c`: Sema constant folding for sizeof.
+- `src/sema_internal.h`: Internal sema helper declarations.
 
 ### Banked Data Safety
 

@@ -14,11 +14,16 @@ sh "$ROOT/tools/mk_bootstrap_input.sh" "$BOOT"
 "$ROOT/pdp11cc" \
   "$ROOT/src/main_sim.c" \
   "$ROOT/src/tokenize.c" \
+  "$ROOT/src/lex_literals.c" \
   "$ROOT/src/parser.c" \
   "$ROOT/src/parser_scope.c" \
   "$ROOT/src/type.c" \
   "$ROOT/src/ast.c" \
+  "$ROOT/src/ast_build.c" \
   "$ROOT/src/sema.c" \
+  "$ROOT/src/sema_type.c" \
+  "$ROOT/src/sema_check.c" \
+  "$ROOT/src/sema_const.c" \
   "$ROOT/src/codegen.c" \
   "$ROOT/src/codegen_expr.c" \
   "$ROOT/src/codegen_stmt.c" \

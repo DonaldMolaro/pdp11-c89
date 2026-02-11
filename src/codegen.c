@@ -1,6 +1,6 @@
 #include "codegen_internal.h"
 #include "emitter.h"
-#include "runtime.h"
+#include "runtime_emit.h"
 
 #include <stdio.h>
 #include <string.h>

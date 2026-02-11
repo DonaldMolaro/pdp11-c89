@@ -1,16 +1,8 @@
 #include "compiler.h"
+#include "lex_literals.h"
 
 #include <ctype.h>
-#include <stdlib.h>
 #include <string.h>
-
-static Token *new_token(int kind, char *start, char *end) {
-    Token *tok = xcalloc(1, sizeof(Token));
-    tok->kind = kind;
-    tok->loc = start;
-    tok->len = (int)(end - start);
-    return tok;
-}
 
 static int is_ident1(int c) {
     return isalpha(c) || c == '_';
@@ -18,48 +10,6 @@ static int is_ident1(int c) {
 
 static int is_ident2(int c) {
     return isalnum(c) || c == '_';
-}
-
-static long read_number(char **p) {
-    char *s = *p;
-    int base = 10;
-    long val = 0;
-
-    if (s[0] == '0') {
-        if (s[1] == 'x' || s[1] == 'X') {
-            base = 16;
-            s += 2;
-        } else if (isdigit((unsigned char)s[1])) {
-            base = 8;
-            s += 1;
-        }
-    }
-
-    while (*s) {
-        int d;
-        if (isdigit((unsigned char)*s)) d = *s - '0';
-        else if (*s >= 'a' && *s <= 'f') d = 10 + (*s - 'a');
-        else if (*s >= 'A' && *s <= 'F') d = 10 + (*s - 'A');
-        else break;
-        if (d >= base) break;
-        val = val * base + d;
-        s++;
-    }
-
-    *p = s;
-    return val;
-}
-
-static int read_escape(char **p) {
-    char *s = *p;
-    if (*s == 'n') { *p = s + 1; return '\n'; }
-    if (*s == 't') { *p = s + 1; return '\t'; }
-    if (*s == 'r') { *p = s + 1; return '\r'; }
-    if (*s == '\\') { *p = s + 1; return '\\'; }
-    if (*s == '\'') { *p = s + 1; return '\''; }
-    if (*s == '\"') { *p = s + 1; return '\"'; }
-    *p = s + 1;
-    return *s;
 }
 
 static int skip_space_and_comments(char **p) {
@@ -121,62 +71,12 @@ static void classify_keyword(Token *tok) {
     else if (tok->len == 4 && strncmp(tok->str, "long", 4) == 0) tok->kind = TK_LONG;
 }
 
-static Token *read_string_literal(char **p) {
-    char *start = (*p)++;
-    char *buf = xcalloc(1, 4096);
-    int len = 0;
-    while (**p && **p != '"') {
-        if (**p == '\\') {
-            (*p)++;
-            buf[len++] = (char)read_escape(p);
-            continue;
-        }
-        buf[len++] = *(*p)++;
-    }
-    if (**p != '"') error_at(start, "unterminated string");
-    (*p)++;
-    {
-        Token *tok = new_token(TK_STR, start, *p);
-        tok->str = buf;
-        tok->str_len = len;
-        return tok;
-    }
-}
-
-static Token *read_char_literal(char **p) {
-    char *start = (*p)++;
-    int c;
-    if (**p == '\\') {
-        (*p)++;
-        c = read_escape(p);
-    } else {
-        c = *(*p)++;
-    }
-    if (**p != '\'') error_at(start, "unterminated char literal");
-    (*p)++;
-    {
-        Token *tok = new_token(TK_CHAR, start, *p);
-        tok->val = c;
-        return tok;
-    }
-}
-
-static Token *read_number_token(char **p) {
-    char *start = *p;
-    long val = read_number(p);
-    {
-        Token *tok = new_token(TK_NUM, start, *p);
-        tok->val = val;
-        return tok;
-    }
-}
-
 static Token *read_ident_or_keyword(char **p) {
     char *start = *p;
     (*p)++;
     while (is_ident2(**p)) (*p)++;
     {
-        Token *tok = new_token(TK_IDENT, start, *p);
+        Token *tok = lex_new_token(TK_IDENT, start, *p);
         tok->str = strndup2(start, tok->len);
         classify_keyword(tok);
         return tok;
@@ -185,23 +85,23 @@ static Token *read_ident_or_keyword(char **p) {
 
 static Token *read_punct(char **p) {
     char *s = *p;
-    if (startswith(s, "...")) { *p = s + 3; return new_token(TK_ELLIPSIS, s, s + 3); }
-    if (startswith(s, "++")) { *p = s + 2; return new_token(TK_INC, s, s + 2); }
-    if (startswith(s, "+=")) { *p = s + 2; return new_token(TK_ADD_EQ, s, s + 2); }
-    if (startswith(s, "--")) { *p = s + 2; return new_token(TK_DEC, s, s + 2); }
-    if (startswith(s, "-=")) { *p = s + 2; return new_token(TK_SUB_EQ, s, s + 2); }
-    if (startswith(s, "->")) { *p = s + 2; return new_token(TK_ARROW, s, s + 2); }
-    if (startswith(s, "==")) { *p = s + 2; return new_token(TK_EQ, s, s + 2); }
-    if (startswith(s, "!=")) { *p = s + 2; return new_token(TK_NE, s, s + 2); }
-    if (startswith(s, "<=")) { *p = s + 2; return new_token(TK_LE, s, s + 2); }
-    if (startswith(s, ">=")) { *p = s + 2; return new_token(TK_GE, s, s + 2); }
-    if (startswith(s, "&&")) { *p = s + 2; return new_token(TK_AND, s, s + 2); }
-    if (startswith(s, "||")) { *p = s + 2; return new_token(TK_OR, s, s + 2); }
-    if (startswith(s, "<<")) { *p = s + 2; return new_token(TK_SHL, s, s + 2); }
-    if (startswith(s, ">>")) { *p = s + 2; return new_token(TK_SHR, s, s + 2); }
+    if (startswith(s, "...")) { *p = s + 3; return lex_new_token(TK_ELLIPSIS, s, s + 3); }
+    if (startswith(s, "++")) { *p = s + 2; return lex_new_token(TK_INC, s, s + 2); }
+    if (startswith(s, "+=")) { *p = s + 2; return lex_new_token(TK_ADD_EQ, s, s + 2); }
+    if (startswith(s, "--")) { *p = s + 2; return lex_new_token(TK_DEC, s, s + 2); }
+    if (startswith(s, "-=")) { *p = s + 2; return lex_new_token(TK_SUB_EQ, s, s + 2); }
+    if (startswith(s, "->")) { *p = s + 2; return lex_new_token(TK_ARROW, s, s + 2); }
+    if (startswith(s, "==")) { *p = s + 2; return lex_new_token(TK_EQ, s, s + 2); }
+    if (startswith(s, "!=")) { *p = s + 2; return lex_new_token(TK_NE, s, s + 2); }
+    if (startswith(s, "<=")) { *p = s + 2; return lex_new_token(TK_LE, s, s + 2); }
+    if (startswith(s, ">=")) { *p = s + 2; return lex_new_token(TK_GE, s, s + 2); }
+    if (startswith(s, "&&")) { *p = s + 2; return lex_new_token(TK_AND, s, s + 2); }
+    if (startswith(s, "||")) { *p = s + 2; return lex_new_token(TK_OR, s, s + 2); }
+    if (startswith(s, "<<")) { *p = s + 2; return lex_new_token(TK_SHL, s, s + 2); }
+    if (startswith(s, ">>")) { *p = s + 2; return lex_new_token(TK_SHR, s, s + 2); }
     if (strchr("+-*/%(){}[];,<>=!&|.^~:?", *s)) {
         *p = s + 1;
-        return new_token(*s, s, s + 1);
+        return lex_new_token(*s, s, s + 1);
     }
     return NULL;
 }
@@ -219,17 +119,17 @@ Token *tokenize(char *input) {
         if (skip_space_and_comments(&p)) continue;
 
         if (*p == '"') {
-            cur = cur->next = read_string_literal(&p);
+            cur = cur->next = lex_read_string_literal(&p);
             continue;
         }
 
         if (*p == '\'') {
-            cur = cur->next = read_char_literal(&p);
+            cur = cur->next = lex_read_char_literal(&p);
             continue;
         }
 
         if (isdigit((unsigned char)*p)) {
-            cur = cur->next = read_number_token(&p);
+            cur = cur->next = lex_read_number_token(&p);
             continue;
         }
 
@@ -247,6 +147,6 @@ Token *tokenize(char *input) {
         error_at(p, "invalid token");
     }
 
-    cur->next = new_token(TK_EOF, p, p);
+    cur->next = lex_new_token(TK_EOF, p, p);
     return head.next;
 }
