@@ -19,8 +19,19 @@ sh "$ROOT/tools/mk_bootstrap_input.sh" "$BOOT"
   "$ROOT/src/ast.c" \
   "$ROOT/src/sema.c" \
   "$ROOT/src/codegen.c" \
+  "$ROOT/src/codegen_expr.c" \
+  "$ROOT/src/codegen_stmt.c" \
+  "$ROOT/src/codegen_addr.c" \
   "$ROOT/src/util.c" \
   "$ROOT/src/preprocess.c" \
+  "$ROOT/src/emitter.c" \
+  "$ROOT/src/emit_utils.c" \
+  "$ROOT/src/runtime.c" \
+  "$ROOT/src/runtime_startup.c" \
+  "$ROOT/src/runtime_stdio.c" \
+  "$ROOT/src/runtime_format.c" \
+  "$ROOT/src/runtime_fileio.c" \
+  "$ROOT/src/runtime_math.c" \
   "$ROOT/src/sim_support.c" \
   -o "$ASM1"
 

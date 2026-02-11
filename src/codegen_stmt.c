@@ -78,7 +78,7 @@ void gen_stmt(CodegenContext *ctx, Node *node) {
                         emitln("    MOV R3, R2");
                     } else {
                         emitln("    MOV 4(R4), R2");
-                        gen_expr(ctx, node->lhs);
+                        gen_addr(ctx, node->lhs);
                     }
                     emitln("    MOV #%d, R1", size);
                     emitln("    MOV R1, -(R6)");
