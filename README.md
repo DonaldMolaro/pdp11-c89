@@ -91,7 +91,11 @@ pdp11_set_bank(int bank);
 - `src/codegen.c`: AST -> PDP-11 assembly emission.
 - `src/codegen_gen.c`: Expression/statement emission helpers used by `codegen.c`.
 - `src/codegen_internal.h`: Shared codegen context and internal APIs.
-- `src/runtime.c`: Runtime/trap helpers emitted into every output (stdio, file I/O, math helpers).
+- `src/runtime.c`: Startup/data emission and runtime dispatcher.
+- `src/runtime_stdio.c`: stdio runtime helpers (TRAP-backed).
+- `src/runtime_format.c`: printf/scanf helpers.
+- `src/runtime_fileio.c`: file I/O helpers and PDP-11 TRAPs.
+- `src/runtime_math.c`: builtin math/bitwise helpers.
 - `src/emitter.c`: Shared `emitln()` and output setup.
 
 ### Banked Data Safety
