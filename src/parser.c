@@ -310,6 +310,14 @@ static Type *type_suffix(Type *ty, Obj **params) {
     return ty;
 }
 
+static Type *type_suffix_under(Type *ty, Obj **params) {
+    if (ty->kind == TY_PTR) {
+        Type *base = type_suffix_under(ty->base, params);
+        return pointer_to(base);
+    }
+    return type_suffix(ty, params);
+}
+
 static Type *declarator(Type *ty, char **name, Obj **params) {
     while (consume('*')) {
         ty = pointer_to(ty);
@@ -318,7 +326,7 @@ static Type *declarator(Type *ty, char **name, Obj **params) {
     if (consume('(')) {
         Type *inner = declarator(ty, name, params);
         expect(')');
-        return type_suffix(inner, params);
+        return type_suffix_under(inner, params);
     }
 
     *name = expect_ident();
