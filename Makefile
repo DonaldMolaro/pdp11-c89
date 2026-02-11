@@ -10,6 +10,7 @@ SRC = \
 	src/sema.c \
 	src/emitter.c \
 	src/runtime.c \
+	src/codegen_gen.c \
 	src/codegen.c \
 	src/util.c \
 	src/preprocess.c

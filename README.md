@@ -89,6 +89,8 @@ pdp11_set_bank(int bank);
 ## Source Layout
 
 - `src/codegen.c`: AST -> PDP-11 assembly emission.
+- `src/codegen_gen.c`: Expression/statement emission helpers used by `codegen.c`.
+- `src/codegen_internal.h`: Shared codegen context and internal APIs.
 - `src/runtime.c`: Runtime/trap helpers emitted into every output (stdio, file I/O, math helpers).
 - `src/emitter.c`: Shared `emitln()` and output setup.
 
