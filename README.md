@@ -102,6 +102,7 @@ pdp11_set_bank(int bank);
 - `src/runtime_format.c`: printf/scanf helpers.
 - `src/runtime_fileio.c`: file I/O helpers and PDP-11 TRAPs.
 - `src/runtime_math.c`: builtin math/bitwise helpers.
+- `src/runtime_string.c`: basic string/memory helpers.
 - `src/emitter.c`: Shared `emitln()` and output setup.
 - `src/emit_utils.c`: Shared assembly emit helpers (stack push/pop).
 - `src/lex_literals.c`: Literal parsing helpers for the lexer.

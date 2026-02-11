@@ -71,6 +71,7 @@ enum {
 Token *tokenize(char *input);
 void error_at(char *loc, const char *fmt, ...);
 void set_current_input(char *input);
+void set_current_filename(const char *name);
 void set_file_prefix(const char *prefix);
 
 char *preprocess_file(const char *path);

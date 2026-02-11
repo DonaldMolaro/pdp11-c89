@@ -154,8 +154,55 @@ static void gen_rel(CodegenContext *ctx, Node *node, int kind) {
     }
 }
 
+static int is_const_num(Node *node) {
+    return node && node->kind == ND_NUM;
+}
+
+static int emit_const_fold(Node *node) {
+    if (!node || !node->lhs) return 0;
+    if (node->kind == ND_NEG && is_const_num(node->lhs)) {
+        emitln("    MOV #%ld, R0", -node->lhs->val);
+        return 1;
+    }
+    if (node->kind == ND_BITNOT && is_const_num(node->lhs)) {
+        emitln("    MOV #%ld, R0", ~node->lhs->val);
+        return 1;
+    }
+    if (!node->rhs || !is_const_num(node->lhs) || !is_const_num(node->rhs)) return 0;
+    {
+        long a = node->lhs->val;
+        long b = node->rhs->val;
+        long v = 0;
+        switch (node->kind) {
+            case ND_ADD: v = a + b; break;
+            case ND_SUB: v = a - b; break;
+            case ND_MUL: v = a * b; break;
+            case ND_DIV: if (b == 0) return 0; v = a / b; break;
+            case ND_MOD: if (b == 0) return 0; v = a % b; break;
+            case ND_BITAND: v = a & b; break;
+            case ND_BITOR: v = a | b; break;
+            case ND_BITXOR: v = a ^ b; break;
+            case ND_SHL: v = a << b; break;
+            case ND_SHR: v = a >> b; break;
+            case ND_EQ: v = (a == b); break;
+            case ND_NE: v = (a != b); break;
+            case ND_LT: v = (a < b); break;
+            case ND_LE: v = (a <= b); break;
+            case ND_GT: v = (a > b); break;
+            case ND_GE: v = (a >= b); break;
+            case ND_LOGAND: v = (a && b); break;
+            case ND_LOGOR: v = (a || b); break;
+            default: return 0;
+        }
+        emitln("    MOV #%ld, R0", v);
+        return 1;
+    }
+}
+
 void gen_expr(CodegenContext *ctx, Node *node) {
     int c;
+
+    if (emit_const_fold(node)) return;
 
     switch (node->kind) {
         case ND_NUM:

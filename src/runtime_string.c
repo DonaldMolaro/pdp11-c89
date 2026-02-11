@@ -1,0 +1,82 @@
+#include "runtime.h"
+#include "emitter.h"
+
+void runtime_emit_string(void) {
+    emitln("strlen:");
+    emitln("    MOV R4, -(R6)");
+    emitln("    MOV R6, R4");
+    emitln("    MOV 4(R4), R1");
+    emitln("    CLR R0");
+    emitln(".Lstrlen_loop:");
+    emitln("    MOVB (R1), R2");
+    emitln("    BEQ .Lstrlen_done");
+    emitln("    INC R0");
+    emitln("    INC R1");
+    emitln("    BR .Lstrlen_loop");
+    emitln(".Lstrlen_done:");
+    emitln("    MOV R4, R6");
+    emitln("    MOV (R6)+, R4");
+    emitln("    RTS R5");
+
+    emitln("strcmp:");
+    emitln("    MOV R4, -(R6)");
+    emitln("    MOV R6, R4");
+    emitln("    MOV 4(R4), R1");
+    emitln("    MOV 6(R4), R2");
+    emitln(".Lstrcmp_loop:");
+    emitln("    MOVB (R1), R0");
+    emitln("    MOVB (R2), R3");
+    emitln("    CMP R0, R3");
+    emitln("    BNE .Lstrcmp_diff");
+    emitln("    TST R0");
+    emitln("    BEQ .Lstrcmp_done");
+    emitln("    INC R1");
+    emitln("    INC R2");
+    emitln("    BR .Lstrcmp_loop");
+    emitln(".Lstrcmp_diff:");
+    emitln("    MOV R0, -(R6)");
+    emitln("    MOV R3, -(R6)");
+    emitln("    MOV (R6)+, R3");
+    emitln("    MOV (R6)+, R0");
+    emitln("    SUB R3, R0");
+    emitln("    BR .Lstrcmp_ret");
+    emitln(".Lstrcmp_done:");
+    emitln("    CLR R0");
+    emitln(".Lstrcmp_ret:");
+    emitln("    MOV R4, R6");
+    emitln("    MOV (R6)+, R4");
+    emitln("    RTS R5");
+
+    emitln("memcpy:");
+    emitln("    MOV R4, -(R6)");
+    emitln("    MOV R6, R4");
+    emitln("    MOV 4(R4), R0");
+    emitln("    MOV 6(R4), R1");
+    emitln("    MOV 8(R4), R2");
+    emitln("    MOV R2, -(R6)");
+    emitln("    MOV R1, -(R6)");
+    emitln("    MOV R0, -(R6)");
+    emitln("    JSR R5, __memcpy");
+    emitln("    ADD #6, R6");
+    emitln("    MOV R4, R6");
+    emitln("    MOV (R6)+, R4");
+    emitln("    RTS R5");
+
+    emitln("memset:");
+    emitln("    MOV R4, -(R6)");
+    emitln("    MOV R6, R4");
+    emitln("    MOV 4(R4), R1");
+    emitln("    MOV 6(R4), R0");
+    emitln("    MOV 8(R4), R2");
+    emitln(".Lmemset_loop:");
+    emitln("    TST R2");
+    emitln("    BEQ .Lmemset_done");
+    emitln("    MOVB R0, (R1)+");
+    emitln("    DEC R2");
+    emitln("    BR .Lmemset_loop");
+    emitln(".Lmemset_done:");
+    emitln("    MOV 4(R4), R0");
+    emitln("    MOV R4, R6");
+    emitln("    MOV (R6)+, R4");
+    emitln("    RTS R5");
+}

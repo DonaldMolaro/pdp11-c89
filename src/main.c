@@ -43,6 +43,7 @@ int main(int argc, char **argv) {
         char *prefix = xcalloc(1, 32);
         sprintf(prefix, "F%d_", file_id++);
         set_file_prefix(prefix);
+        set_current_filename(inputs[i]);
 
         input = preprocess_file(inputs[i]);
         if (!input) {

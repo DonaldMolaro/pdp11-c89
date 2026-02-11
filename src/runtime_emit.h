@@ -8,5 +8,6 @@ void runtime_emit_stdio(void);
 void runtime_emit_format(void);
 void runtime_emit_fileio(void);
 void runtime_emit_math(void);
+void runtime_emit_string(void);
 
 #endif

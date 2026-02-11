@@ -41,6 +41,7 @@ sh "$ROOT/tools/mk_bootstrap_input.sh" "$BOOT"
   "$ROOT/src/runtime_format.c" \
   "$ROOT/src/runtime_fileio.c" \
   "$ROOT/src/runtime_math.c" \
+  "$ROOT/src/runtime_string.c" \
   "$ROOT/src/sim_support.c" \
   -o "$ASM1"
 

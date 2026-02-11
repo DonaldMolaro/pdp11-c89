@@ -16,6 +16,12 @@ struct Macro {
 
 static Macro *macros;
 
+typedef struct Cond Cond;
+struct Cond {
+    int active;
+    int seen_else;
+};
+
 static char *read_file(const char *path) {
     FILE *fp = fopen(path, "r");
     char *buf;
@@ -61,6 +67,22 @@ static void clear_params(Macro *m) {
     m->param_count = 0;
 }
 
+static void undef_macro(const char *name, int len) {
+    Macro **pm = &macros;
+    while (*pm) {
+        Macro *m = *pm;
+        if ((int)strlen(m->name) == len && strncmp(m->name, name, len) == 0) {
+            *pm = m->next;
+            if (m->value) free(m->value);
+            clear_params(m);
+            free(m->name);
+            free(m);
+            return;
+        }
+        pm = &m->next;
+    }
+}
+
 static void define_macro(const char *name, int len, const char *value, int is_func, char **params, int param_count) {
     Macro *m = find_macro(name, len);
     if (!m) {
@@ -80,6 +102,19 @@ static void define_macro(const char *name, int len, const char *value, int is_fu
             m->params[i] = xstrdup(params[i]);
         }
     }
+}
+
+static void clear_macros(void) {
+    Macro *m = macros;
+    while (m) {
+        Macro *next = m->next;
+        if (m->value) free(m->value);
+        clear_params(m);
+        free(m->name);
+        free(m);
+        m = next;
+    }
+    macros = NULL;
 }
 
 static int is_ident1(int c) {
@@ -239,6 +274,24 @@ static void handle_define(const char *line) {
     }
 }
 
+static void handle_undef(const char *line) {
+    const char *p = line;
+    while (*p && (*p == ' ' || *p == '\t')) p++;
+    if (*p != '#') return;
+    p++;
+    while (*p && (*p == ' ' || *p == '\t')) p++;
+    if (strncmp(p, "undef", 5) != 0) return;
+    p += 5;
+    while (*p && (*p == ' ' || *p == '\t')) p++;
+    if (!is_ident1(*p)) return;
+    {
+        const char *name = p;
+        p++;
+        while (is_ident2(*p)) p++;
+        undef_macro(name, (int)(p - name));
+    }
+}
+
 static void append_repl(const char *value, Macro *m, char **args, int argc, char **out, size_t *len, size_t *cap) {
     const char *p = value;
     while (*p) {
@@ -272,8 +325,18 @@ static char *dup_trim(const char *start, const char *end) {
     return strndup2(start, (int)(end - start));
 }
 
+static void expand_macros_line_depth(const char *line, int depth, char **out, size_t *len, size_t *cap);
+
 static void expand_macros_line(const char *line, char **out, size_t *len, size_t *cap) {
+    expand_macros_line_depth(line, 0, out, len, cap);
+}
+
+static void expand_macros_line_depth(const char *line, int depth, char **out, size_t *len, size_t *cap) {
     const char *p = line;
+    if (depth > 16) {
+        append(out, len, cap, line);
+        return;
+    }
     while (*p) {
         if (is_ident1(*p)) {
             const char *start = p;
@@ -306,13 +369,31 @@ static void expand_macros_line(const char *line, char **out, size_t *len, size_t
                         if (argc < 8) args[argc++] = dup_trim(arg_start, p);
                         p++; /* skip ')' */
                     }
+                    {
+                        int i;
+                        for (i = 0; i < argc; i++) {
+                            char *tmp = NULL;
+                            size_t tlen = 0;
+                            size_t tcap = 0;
+                            expand_macros_line_depth(args[i], depth + 1, &tmp, &tlen, &tcap);
+                            free(args[i]);
+                            args[i] = tmp ? tmp : xstrdup("");
+                        }
+                    }
                     append_repl(m->value, m, args, argc, out, len, cap);
                     {
                         int i;
                         for (i = 0; i < argc; i++) free(args[i]);
                     }
                 } else if (m && !m->is_func) {
-                    append(out, len, cap, m->value);
+                    char *tmp = NULL;
+                    size_t tlen = 0;
+                    size_t tcap = 0;
+                    expand_macros_line_depth(m->value, depth + 1, &tmp, &tlen, &tcap);
+                    if (tmp) {
+                        append(out, len, cap, tmp);
+                        free(tmp);
+                    }
                 } else {
                     append_n(out, len, cap, start, (size_t)(p - start));
                 }
@@ -329,6 +410,8 @@ static char *preprocess_text(const char *text, const char *base_dir) {
     size_t cap = 4096;
     size_t len = 0;
     char *out = xcalloc(1, cap);
+    Cond cond_stack[32];
+    int cond_depth = 0;
 
     while (*p) {
         const char *line = p;
@@ -336,26 +419,64 @@ static char *preprocess_text(const char *text, const char *base_dir) {
         {
             size_t linelen = (size_t)(p - line);
             char *linebuf = strndup2(line, (int)linelen);
+            int active = 1;
+            if (cond_depth > 0) {
+                int i;
+                for (i = 0; i < cond_depth; i++) {
+                    if (!cond_stack[i].active) { active = 0; break; }
+                }
+            }
             char *inc = handle_include(linebuf, base_dir);
             if (inc) {
-                append(&out, &len, &cap, inc);
-                append(&out, &len, &cap, "\n");
+                if (active) {
+                    append(&out, &len, &cap, inc);
+                    append(&out, &len, &cap, "\n");
+                }
                 free(inc);
                 free(linebuf);
                 if (*p == '\n') p++;
                 continue;
             }
             handle_define(linebuf);
+            handle_undef(linebuf);
             {
                 const char *q = linebuf;
                 while (*q && (*q == ' ' || *q == '\t')) q++;
                 if (*q == '#') {
+                    q++;
+                    while (*q && (*q == ' ' || *q == '\t')) q++;
+                    if (strncmp(q, "ifdef", 5) == 0) {
+                        q += 5;
+                        while (*q && (*q == ' ' || *q == '\t')) q++;
+                        if (cond_depth < 32) {
+                            Macro *m = find_macro(q, (int)strlen(q));
+                            cond_stack[cond_depth].active = (m != NULL);
+                            cond_stack[cond_depth].seen_else = 0;
+                            cond_depth++;
+                        }
+                    } else if (strncmp(q, "ifndef", 6) == 0) {
+                        q += 6;
+                        while (*q && (*q == ' ' || *q == '\t')) q++;
+                        if (cond_depth < 32) {
+                            Macro *m = find_macro(q, (int)strlen(q));
+                            cond_stack[cond_depth].active = (m == NULL);
+                            cond_stack[cond_depth].seen_else = 0;
+                            cond_depth++;
+                        }
+                    } else if (strncmp(q, "else", 4) == 0) {
+                        if (cond_depth > 0 && !cond_stack[cond_depth - 1].seen_else) {
+                            cond_stack[cond_depth - 1].active = !cond_stack[cond_depth - 1].active;
+                            cond_stack[cond_depth - 1].seen_else = 1;
+                        }
+                    } else if (strncmp(q, "endif", 5) == 0) {
+                        if (cond_depth > 0) cond_depth--;
+                    }
                     free(linebuf);
                     if (*p == '\n') p++;
                     continue;
                 }
             }
-            if (0) {
+            if (!active) {
                 free(linebuf);
                 if (*p == '\n') p++;
                 continue;
@@ -371,6 +492,7 @@ static char *preprocess_text(const char *text, const char *base_dir) {
 }
 
 char *preprocess_file(const char *path) {
+    clear_macros();
     char *src = read_file(path);
     if (!src) return NULL;
     {

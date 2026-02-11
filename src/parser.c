@@ -315,6 +315,12 @@ static Type *declarator(Type *ty, char **name, Obj **params) {
         ty = pointer_to(ty);
     }
 
+    if (consume('(')) {
+        Type *inner = declarator(ty, name, params);
+        expect(')');
+        return type_suffix(inner, params);
+    }
+
     *name = expect_ident();
     return type_suffix(ty, params);
 }

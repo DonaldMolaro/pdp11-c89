@@ -44,6 +44,7 @@ static void parse_file_path(const char *path, int file_id, Obj **all) {
 
     sprintf(prefix, "F%d_", file_id);
     set_file_prefix(prefix);
+    set_current_filename(path);
 
     input = preprocess_file(path);
     if (!input) {
@@ -72,6 +73,7 @@ static void parse_segment(char *start, char *end, int file_id, Obj **all) {
     prefix = xcalloc(1, 32);
     sprintf(prefix, "F%d_", file_id);
     set_file_prefix(prefix);
+    set_current_filename("<segment>");
 
     tok = tokenize(buf);
     prog = parse(tok);
