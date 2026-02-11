@@ -8,6 +8,8 @@ SRC = \
 	src/type.c \
 	src/ast.c \
 	src/sema.c \
+	src/emitter.c \
+	src/runtime.c \
 	src/codegen.c \
 	src/util.c \
 	src/preprocess.c
