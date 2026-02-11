@@ -21,6 +21,10 @@ $(OBJ): src/compiler.h
 
 clean:
 	rm -f $(OBJ) pdp11cc
+	rm -f examples/*.asm
+	rm -f tests/pdp11cc_sim.asm tests/pdp11cc_sim_out.asm tests/pdp11cc_sim_out2.asm
+	rm -f tests/pdp11cc_sim_paths_out.asm tests/pdp11cc_sim_paths_out2.asm
+	rm -f tests/bootstrap.c tests/sim_paths.txt tests/stage2.diff
 
 stage-2-smoke: pdp11cc
 	@echo "Running stage-2 smoke check..."
@@ -40,7 +44,13 @@ examples: pdp11cc
 sim-input:
 	@echo "Building sim input file..."
 	@OUT=$${OUT:-tests/sim_input.txt}; \
-	FILES=$${FILES:-src/main_sim.c src/tokenize.c src/parser.c src/type.c src/ast.c src/sema.c src/codegen.c src/util.c src/sim_support.c}; \
+	FILES=$${FILES:-src/main_sim.c src/tokenize.c src/parser.c src/type.c src/ast.c src/sema.c src/codegen.c src/util.c src/preprocess.c src/sim_support.c}; \
 	tools/mk_sim_input.sh $$OUT $$FILES
 
-.PHONY: clean stage-2-smoke examples sim-input
+sim-paths:
+	@echo "Building sim PATH list..."
+	@OUT=$${OUT:-tests/sim_paths.txt}; \
+	FILES=$${FILES:-src/main_sim.c src/tokenize.c src/parser.c src/type.c src/ast.c src/sema.c src/codegen.c src/util.c src/preprocess.c src/sim_support.c}; \
+	tools/mk_sim_paths.sh $$OUT $$FILES
+
+.PHONY: clean stage-2-smoke examples sim-input sim-paths

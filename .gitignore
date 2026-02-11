@@ -1,2 +1,12 @@
 pdp11_file_io.txt
 tests/sim_input.txt
+examples/*.asm
+tests/pdp11cc_sim.asm
+tests/pdp11cc_sim_out.asm
+tests/pdp11cc_sim_out2.asm
+tests/pdp11cc_sim_paths_out.asm
+tests/pdp11cc_sim_paths_out2.asm
+tests/bootstrap.c
+tests/sim_paths.txt
+tests/stage2.diff
+pdp11cc

@@ -36,6 +36,25 @@ static Obj *append_prog(Obj *all, Obj *prog) {
     return all;
 }
 
+static void parse_file_path(const char *path, int file_id, Obj **all) {
+    char *prefix = xcalloc(1, 32);
+    char *input;
+    Token *tok;
+    Obj *prog;
+
+    sprintf(prefix, "F%d_", file_id);
+    set_file_prefix(prefix);
+
+    input = preprocess_file(path);
+    if (!input) {
+        fprintf(stderr, "cannot open %s\n", path);
+        return;
+    }
+    tok = tokenize(input);
+    prog = parse(tok);
+    *all = append_prog(*all, prog);
+}
+
 static void parse_segment(char *start, char *end, int file_id, Obj **all) {
     char *buf;
     char *p;
@@ -78,7 +97,16 @@ int main(int argc, char **argv) {
     while (*p) {
         if (*p == '\n') {
             *p = '\0';
-            if (startswith(line, "//--FILE:") || startswith(line, "FILE ")) {
+            if (startswith(line, "PATH ")) {
+                char *path = line + 5;
+                if (seg_start && in_file_block) {
+                    parse_segment(seg_start, line - 1, file_id, &all);
+                    seg_start = NULL;
+                    in_file_block = 0;
+                }
+                file_id++;
+                parse_file_path(path, file_id, &all);
+            } else if (startswith(line, "//--FILE:") || startswith(line, "FILE ")) {
                 if (file_id >= 0 && seg_start) {
                     parse_segment(seg_start, line - 1, file_id, &all);
                 }
