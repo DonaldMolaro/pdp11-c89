@@ -1,7 +1,5 @@
 #include "compiler.h"
 
-#include <string.h>
-
 #include <stdio.h>
 #include <string.h>
 
@@ -48,6 +46,8 @@ static char *file_prefix;
 
 static Type *basetype(void);
 static Type *declarator(Type *ty, char **name, Obj **params);
+static void init_parser_state(Token *tok);
+static void parse_global_decl(void);
 
 void set_file_prefix(const char *prefix) {
     file_prefix = (char *)prefix;
@@ -897,83 +897,104 @@ static Node *stmt(void) {
 }
 
 Obj *parse(Token *tok) {
-    token = tok;
-    globals = NULL;
-    scope = NULL;
-    enter_scope();
-    current_switch = NULL;
-    loop_depth = 0;
+    init_parser_state(tok);
 
     while (token->kind != TK_EOF) {
-        int is_typedef = 0;
-        Type *base = NULL;
-        if (consume(TK_TYPEDEF)) is_typedef = 1;
-        base = basetype();
-        {
-            int is_static = decl_is_static;
-            int is_extern = decl_is_extern;
-        if (consume(';')) continue;
-        char *name = NULL;
-        Obj *params = NULL;
-        Type *ty = declarator(base, &name, &params);
-
-        if (ty->kind == TY_FUNC && consume('{')) {
-            if (is_typedef) error_at(token->loc, "typedef function definition not allowed");
-            Obj *fn = new_var(name, ty, 0, is_static, is_extern);
-            fn->is_function = 1;
-            locals = NULL;
-            current_fn = fn;
-
-            enter_scope();
-            fn->params = params;
-            {
-                Obj *p = params;
-                while (p) {
-                    push_scope(p->name, p);
-                    p = p->next;
-                }
-            }
-            fn->body = compound_stmt();
-            fn->locals = locals;
-            leave_scope();
-            continue;
-        }
-
-        if (ty->kind == TY_FUNC) {
-            Obj *fn = new_var(name, ty, 0, is_static, is_extern);
-            fn->is_function = 1;
-            fn->params = params;
-            expect(';');
-            continue;
-        }
-
-        if (is_typedef) {
-            push_typedef_scope(name, ty);
-            expect(';');
-            continue;
-        }
-
-        Obj *var = new_var(name, ty, 0, is_static, is_extern);
-        if (consume('=')) {
-            if (token->kind == TK_STR) {
-                Token *st = token;
-                token = token->next;
-                var->init_data = st->str;
-                var->init_len = st->str_len;
-            } else if (token->kind == TK_NUM) {
-                var->init_data = xcalloc(1, 2);
-                var->init_data[0] = (char)(token->val & 0xFF);
-                var->init_data[1] = (char)((token->val >> 8) & 0xFF);
-                var->init_len = 2;
-                token = token->next;
-            } else {
-                error_at(token->loc, "unsupported initializer");
-            }
-            var->is_extern = 0;
-        }
-        expect(';');
-        }
+        parse_global_decl();
     }
 
     return globals;
+}
+
+static void init_parser_state(Token *tok) {
+    token = tok;
+    globals = NULL;
+    scope = NULL;
+    locals = NULL;
+    current_fn = NULL;
+    current_switch = NULL;
+    loop_depth = 0;
+    decl_is_static = 0;
+    decl_is_extern = 0;
+    enter_scope();
+}
+
+static void parse_global_decl(void) {
+    int is_typedef = 0;
+    Type *base;
+
+    if (consume(TK_TYPEDEF)) is_typedef = 1;
+    base = basetype();
+
+    {
+        int is_static = decl_is_static;
+        int is_extern = decl_is_extern;
+
+        if (consume(';')) return;
+
+        {
+            char *name = NULL;
+            Obj *params = NULL;
+            Type *ty = declarator(base, &name, &params);
+
+            if (ty->kind == TY_FUNC && consume('{')) {
+                if (is_typedef) error_at(token->loc, "typedef function definition not allowed");
+                Obj *fn = new_var(name, ty, 0, is_static, is_extern);
+                fn->is_function = 1;
+                locals = NULL;
+                current_fn = fn;
+
+                enter_scope();
+                fn->params = params;
+                {
+                    Obj *p = params;
+                    while (p) {
+                        push_scope(p->name, p);
+                        p = p->next;
+                    }
+                }
+                fn->body = compound_stmt();
+                fn->locals = locals;
+                leave_scope();
+                return;
+            }
+
+            if (ty->kind == TY_FUNC) {
+                Obj *fn = new_var(name, ty, 0, is_static, is_extern);
+                fn->is_function = 1;
+                fn->params = params;
+                expect(';');
+                return;
+            }
+
+            if (is_typedef) {
+                push_typedef_scope(name, ty);
+                expect(';');
+                return;
+            }
+
+            {
+                Obj *var = new_var(name, ty, 0, is_static, is_extern);
+                if (consume('=')) {
+                    if (token->kind == TK_STR) {
+                        Token *st = token;
+                        token = token->next;
+                        var->init_data = st->str;
+                        var->init_len = st->str_len;
+                    } else if (token->kind == TK_NUM) {
+                        var->init_data = xcalloc(1, 2);
+                        var->init_data[0] = (char)(token->val & 0xFF);
+                        var->init_data[1] = (char)((token->val >> 8) & 0xFF);
+                        var->init_len = 2;
+                        token = token->next;
+                    } else {
+                        error_at(token->loc, "unsupported initializer");
+                    }
+                    var->is_extern = 0;
+                }
+                expect(';');
+                return;
+            }
+        }
+    }
 }

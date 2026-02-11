@@ -14,5 +14,6 @@ typedef struct CodegenContext {
 } CodegenContext;
 
 void gen_stmt(CodegenContext *ctx, Node *node);
+void gen_expr(CodegenContext *ctx, Node *node);
 
 #endif
