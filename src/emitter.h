@@ -5,5 +5,7 @@
 
 void emit_init(FILE *fp);
 void emitln(const char *fmt, ...);
+void emit_label(const char *label);
+void emit_jmp(const char *label);
 
 #endif

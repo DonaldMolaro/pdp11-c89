@@ -5,59 +5,63 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-static int labelseq;
-static char *current_fn;
-static Obj *current_fn_obj;
-static int break_labels[32];
-static int continue_labels[32];
-static int break_depth;
-static int continue_depth;
 
-static void emit_br_label(const char *label) {
-    emitln("    JMP %s", label);
+typedef struct CodegenContext {
+    int labelseq;
+    char *current_fn;
+    Obj *current_fn_obj;
+    int break_labels[32];
+    int continue_labels[32];
+    int break_depth;
+    int continue_depth;
+} CodegenContext;
+
+static void emit_br_label(CodegenContext *ctx, const char *label) {
+    (void)ctx;
+    emit_jmp(label);
 }
 
-static void emit_beq_label(const char *label) {
-    int c = labelseq++;
+static void emit_beq_label(CodegenContext *ctx, const char *label) {
+    int c = ctx->labelseq++;
     emitln("    BNE .Lskip%d", c);
     emitln("    JMP %s", label);
     emitln(".Lskip%d:", c);
 }
 
-static void emit_bne_label(const char *label) {
-    int c = labelseq++;
+static void emit_bne_label(CodegenContext *ctx, const char *label) {
+    int c = ctx->labelseq++;
     emitln("    BEQ .Lskip%d", c);
     emitln("    JMP %s", label);
     emitln(".Lskip%d:", c);
 }
 
-static void emit_br(const char *fmt, int n) {
+static void emit_br(CodegenContext *ctx, const char *fmt, int n) {
     char buf[64];
     sprintf(buf, fmt, n);
-    emit_br_label(buf);
+    emit_br_label(ctx, buf);
 }
 
-static void emit_beq(const char *fmt, int n) {
+static void emit_beq(CodegenContext *ctx, const char *fmt, int n) {
     char buf[64];
     sprintf(buf, fmt, n);
-    emit_beq_label(buf);
+    emit_beq_label(ctx, buf);
 }
 
-static void emit_bne(const char *fmt, int n) {
+static void emit_bne(CodegenContext *ctx, const char *fmt, int n) {
     char buf[64];
     sprintf(buf, fmt, n);
-    emit_bne_label(buf);
+    emit_bne_label(ctx, buf);
 }
 
-static void emit_br_name(const char *fmt, const char *name) {
+static void emit_br_name(CodegenContext *ctx, const char *fmt, const char *name) {
     char buf[64];
     sprintf(buf, fmt, name);
-    emit_br_label(buf);
+    emit_br_label(ctx, buf);
 }
 
-static void gen_expr(Node *node);
-static void gen_stmt(Node *node);
-static void gen_addr(Node *node);
+static void gen_expr(CodegenContext *ctx, Node *node);
+static void gen_stmt(CodegenContext *ctx, Node *node);
+static void gen_addr(CodegenContext *ctx, Node *node);
 
 static int inc_amount(Type *ty) {
     if (ty->kind == TY_PTR) return ty->base->size;
@@ -73,31 +77,31 @@ static void pop_r1(void) {
     emitln("    MOV (R6)+, R1");
 }
 
-static void push_break(int label) {
-    break_labels[break_depth++] = label;
+static void push_break(CodegenContext *ctx, int label) {
+    ctx->break_labels[ctx->break_depth++] = label;
 }
 
-static void pop_break(void) {
-    if (break_depth > 0) break_depth--;
+static void pop_break(CodegenContext *ctx) {
+    if (ctx->break_depth > 0) ctx->break_depth--;
 }
 
-static void push_continue(int label) {
-    continue_labels[continue_depth++] = label;
+static void push_continue(CodegenContext *ctx, int label) {
+    ctx->continue_labels[ctx->continue_depth++] = label;
 }
 
-static void pop_continue(void) {
-    if (continue_depth > 0) continue_depth--;
+static void pop_continue(CodegenContext *ctx) {
+    if (ctx->continue_depth > 0) ctx->continue_depth--;
 }
 
-static int current_break(void) {
-    return break_depth ? break_labels[break_depth - 1] : -1;
+static int current_break(CodegenContext *ctx) {
+    return ctx->break_depth ? ctx->break_labels[ctx->break_depth - 1] : -1;
 }
 
-static int current_continue(void) {
-    return continue_depth ? continue_labels[continue_depth - 1] : -1;
+static int current_continue(CodegenContext *ctx) {
+    return ctx->continue_depth ? ctx->continue_labels[ctx->continue_depth - 1] : -1;
 }
 
-static void gen_addr(Node *node) {
+static void gen_addr(CodegenContext *ctx, Node *node) {
     if (node->kind == ND_VAR) {
         if (node->var->is_local) {
             emitln("    MOV R4, R0");
@@ -109,11 +113,11 @@ static void gen_addr(Node *node) {
         return;
     }
     if (node->kind == ND_DEREF) {
-        gen_expr(node->lhs);
+        gen_expr(ctx, node->lhs);
         return;
     }
     if (node->kind == ND_MEMBER) {
-        gen_addr(node->lhs);
+        gen_addr(ctx, node->lhs);
         if (node->member)
             emitln("    ADD #%d, R0", node->member->offset);
         return;
@@ -138,33 +142,33 @@ static void store(Type *ty) {
     }
 }
 
-static void gen_cmp(Node *node, int kind) {
-    int c = labelseq++;
+static void gen_cmp(CodegenContext *ctx, Node *node, int kind) {
+    int c = ctx->labelseq++;
 
-    gen_expr(node->lhs);
+    gen_expr(ctx, node->lhs);
     push_r0();
-    gen_expr(node->rhs);
+    gen_expr(ctx, node->rhs);
     pop_r1();
 
     emitln("    CMP R0, R1");
     if (kind == ND_EQ)
-        emit_beq(".Ltrue%d", c);
+        emit_beq(ctx, ".Ltrue%d", c);
     else
-        emit_bne(".Ltrue%d", c);
+        emit_bne(ctx, ".Ltrue%d", c);
 
     emitln("    MOV #0, R0");
-    emit_br(".Lend%d", c);
+    emit_br(ctx, ".Lend%d", c);
     emitln(".Ltrue%d:", c);
     emitln("    MOV #1, R0");
     emitln(".Lend%d:", c);
 }
 
-static void gen_rel(Node *node, int kind) {
-    int c = labelseq++;
+static void gen_rel(CodegenContext *ctx, Node *node, int kind) {
+    int c = ctx->labelseq++;
 
-    gen_expr(node->lhs);
+    gen_expr(ctx, node->lhs);
     push_r0();
-    gen_expr(node->rhs);
+    gen_expr(ctx, node->rhs);
     pop_r1();
 
     emitln("    SUB R0, R1");
@@ -199,9 +203,9 @@ static void gen_rel(Node *node, int kind) {
     }
 
     emitln("    CMP #0, R1");
-    emit_beq(".Lzero%d", c);
+    emit_beq(ctx, ".Lzero%d", c);
     emitln("    MOV #0, R1");
-    emit_br(".Lzero_end%d", c);
+    emit_br(ctx, ".Lzero_end%d", c);
     emitln(".Lzero%d:", c);
     emitln("    MOV #1, R1");
     emitln(".Lzero_end%d:", c);
@@ -220,7 +224,7 @@ static void gen_rel(Node *node, int kind) {
     }
 }
 
-static void gen_expr(Node *node) {
+static void gen_expr(CodegenContext *ctx, Node *node) {
     int c;
 
     switch (node->kind) {
@@ -228,26 +232,26 @@ static void gen_expr(Node *node) {
             emitln("    MOV #%ld, R0", node->val);
             return;
         case ND_VAR:
-            gen_addr(node);
+            gen_addr(ctx, node);
             if (node->ty->kind == TY_ARRAY) return;
             load(node->ty);
             return;
         case ND_MEMBER:
-            gen_addr(node);
+            gen_addr(ctx, node);
             if (node->ty->kind == TY_ARRAY) return;
             load(node->ty);
             return;
         case ND_ADDR:
-            gen_addr(node->lhs);
+            gen_addr(ctx, node->lhs);
             return;
         case ND_DEREF:
-            gen_expr(node->lhs);
+            gen_expr(ctx, node->lhs);
             if (node->ty->kind == TY_ARRAY) return;
             load(node->ty);
             return;
         case ND_PRE_INC: {
             int inc = inc_amount(node->lhs->ty);
-            gen_addr(node->lhs);
+            gen_addr(ctx, node->lhs);
             push_r0();
             load(node->lhs->ty);
             if (inc != 0)
@@ -258,7 +262,7 @@ static void gen_expr(Node *node) {
         }
         case ND_PRE_DEC: {
             int inc = inc_amount(node->lhs->ty);
-            gen_addr(node->lhs);
+            gen_addr(ctx, node->lhs);
             push_r0();
             load(node->lhs->ty);
             if (inc != 0)
@@ -269,7 +273,7 @@ static void gen_expr(Node *node) {
         }
         case ND_POST_INC: {
             int inc = inc_amount(node->lhs->ty);
-            gen_addr(node->lhs);
+            gen_addr(ctx, node->lhs);
             push_r0();
             load(node->lhs->ty);
             emitln("    MOV R0, R2");
@@ -282,7 +286,7 @@ static void gen_expr(Node *node) {
         }
         case ND_POST_DEC: {
             int inc = inc_amount(node->lhs->ty);
-            gen_addr(node->lhs);
+            gen_addr(ctx, node->lhs);
             push_r0();
             load(node->lhs->ty);
             emitln("    MOV R0, R2");
@@ -300,11 +304,11 @@ static void gen_expr(Node *node) {
             int lptr = (lt->kind == TY_PTR || lt->kind == TY_ARRAY);
             if (lptr) scale = lt->base->size;
 
-            gen_addr(node->lhs);
+            gen_addr(ctx, node->lhs);
             push_r0();
             load(lt);
             push_r0();
-            gen_expr(node->rhs);
+            gen_expr(ctx, node->rhs);
             if (lptr && scale == 2) emitln("    ADD R0, R0");
             pop_r1();
             if (node->kind == ND_ADD_EQ)
@@ -321,14 +325,14 @@ static void gen_expr(Node *node) {
                 int size = node->lhs->ty->size;
                 if (node->rhs->kind == ND_FUNCALL &&
                     (node->rhs->ty->kind == TY_STRUCT || node->rhs->ty->kind == TY_UNION)) {
-                    gen_addr(node->lhs);
+                    gen_addr(ctx, node->lhs);
                     emitln("    MOV R0, R3");
-                    gen_expr(node->rhs); /* src addr in R0 */
+                    gen_expr(ctx, node->rhs); /* src addr in R0 */
                     emitln("    MOV R3, R2"); /* dst */
                 } else {
-                    gen_addr(node->lhs);
+                    gen_addr(ctx, node->lhs);
                     emitln("    MOV R0, R2"); /* dst */
-                    gen_addr(node->rhs);
+                    gen_addr(ctx, node->rhs);
                 }
                 emitln("    MOV #%d, R1", size);
                 emitln("    MOV R1, -(R6)");
@@ -342,20 +346,20 @@ static void gen_expr(Node *node) {
                 }
                 return;
             }
-            gen_addr(node->lhs);
+            gen_addr(ctx, node->lhs);
             push_r0();
-            gen_expr(node->rhs);
+            gen_expr(ctx, node->rhs);
             pop_r1();
             store(node->lhs->ty);
             return;
         case ND_NEG:
-            gen_expr(node->lhs);
+            gen_expr(ctx, node->lhs);
             emitln("    MOV R0, R1");
             emitln("    CLR R0");
             emitln("    SUB R1, R0");
             return;
         case ND_BITNOT:
-            gen_expr(node->lhs);
+            gen_expr(ctx, node->lhs);
             emitln("    MOV R0, -(R6)");
             emitln("    JSR R5, __not");
             emitln("    ADD #2, R6");
@@ -364,7 +368,7 @@ static void gen_expr(Node *node) {
             emitln("    MOV #%ld, R0", node->val);
             return;
         case ND_CAST:
-            gen_expr(node->lhs);
+            gen_expr(ctx, node->lhs);
             if (node->ty && node->ty->size == 1) {
                 emitln("    BIC #0xFF00, R0");
             }
@@ -379,9 +383,9 @@ static void gen_expr(Node *node) {
 
             if (lptr && rptr && node->kind == ND_SUB) {
                 scale = lt->base->size;
-                gen_expr(node->lhs);
+                gen_expr(ctx, node->lhs);
                 push_r0();
-                gen_expr(node->rhs);
+                gen_expr(ctx, node->rhs);
                 pop_r1();
                 emitln("    SUB R0, R1");
                 if (scale == 2) emitln("    ASR R1");
@@ -391,9 +395,9 @@ static void gen_expr(Node *node) {
 
             if (!lptr && rptr && node->kind == ND_ADD) {
                 scale = rt->base->size;
-                gen_expr(node->rhs);
+                gen_expr(ctx, node->rhs);
                 push_r0();
-                gen_expr(node->lhs);
+                gen_expr(ctx, node->lhs);
                 if (scale == 2) emitln("    ADD R0, R0");
                 pop_r1();
                 emitln("    ADD R0, R1");
@@ -403,9 +407,9 @@ static void gen_expr(Node *node) {
 
             if (lptr && !rptr) scale = lt->base->size;
 
-            gen_expr(node->lhs);
+            gen_expr(ctx, node->lhs);
             push_r0();
-            gen_expr(node->rhs);
+            gen_expr(ctx, node->rhs);
             if (lptr && scale == 2) emitln("    ADD R0, R0");
             pop_r1();
             if (node->kind == ND_ADD)
@@ -418,9 +422,9 @@ static void gen_expr(Node *node) {
         case ND_MUL:
         case ND_DIV:
         case ND_MOD: {
-            gen_expr(node->rhs);
+            gen_expr(ctx, node->rhs);
             push_r0();
-            gen_expr(node->lhs);
+            gen_expr(ctx, node->lhs);
             push_r0();
             if (node->kind == ND_MUL)
                 emitln("    JSR R5, __mul");
@@ -436,9 +440,9 @@ static void gen_expr(Node *node) {
         case ND_BITXOR:
         case ND_SHL:
         case ND_SHR: {
-            gen_expr(node->rhs);
+            gen_expr(ctx, node->rhs);
             push_r0();
-            gen_expr(node->lhs);
+            gen_expr(ctx, node->lhs);
             push_r0();
             if (node->kind == ND_BITAND)
                 emitln("    JSR R5, __and");
@@ -454,65 +458,65 @@ static void gen_expr(Node *node) {
             return;
         }
         case ND_EQ:
-            gen_cmp(node, ND_EQ);
+            gen_cmp(ctx, node, ND_EQ);
             return;
         case ND_NE:
-            gen_cmp(node, ND_NE);
+            gen_cmp(ctx, node, ND_NE);
             return;
         case ND_LT:
         case ND_LE:
         case ND_GT:
         case ND_GE:
-            gen_rel(node, node->kind);
+            gen_rel(ctx, node, node->kind);
             return;
         case ND_LOGAND:
-            c = labelseq++;
-            gen_expr(node->lhs);
+            c = ctx->labelseq++;
+            gen_expr(ctx, node->lhs);
             emitln("    TST R0");
-            emit_beq(".Lfalse%d", c);
-            gen_expr(node->rhs);
+            emit_beq(ctx, ".Lfalse%d", c);
+            gen_expr(ctx, node->rhs);
             emitln("    TST R0");
-            emit_beq(".Lfalse%d", c);
+            emit_beq(ctx, ".Lfalse%d", c);
             emitln("    MOV #1, R0");
-            emit_br(".Lend%d", c);
+            emit_br(ctx, ".Lend%d", c);
             emitln(".Lfalse%d:", c);
             emitln("    MOV #0, R0");
             emitln(".Lend%d:", c);
             return;
         case ND_LOGOR:
-            c = labelseq++;
-            gen_expr(node->lhs);
+            c = ctx->labelseq++;
+            gen_expr(ctx, node->lhs);
             emitln("    TST R0");
-            emit_bne(".Ltrue%d", c);
-            gen_expr(node->rhs);
+            emit_bne(ctx, ".Ltrue%d", c);
+            gen_expr(ctx, node->rhs);
             emitln("    TST R0");
-            emit_bne(".Ltrue%d", c);
+            emit_bne(ctx, ".Ltrue%d", c);
             emitln("    MOV #0, R0");
-            emit_br(".Lend%d", c);
+            emit_br(ctx, ".Lend%d", c);
             emitln(".Ltrue%d:", c);
             emitln("    MOV #1, R0");
             emitln(".Lend%d:", c);
             return;
         case ND_NOT:
-            c = labelseq++;
-            gen_expr(node->lhs);
+            c = ctx->labelseq++;
+            gen_expr(ctx, node->lhs);
             emitln("    TST R0");
-            emit_beq(".Ltrue%d", c);
+            emit_beq(ctx, ".Ltrue%d", c);
             emitln("    MOV #0, R0");
-            emit_br(".Lend%d", c);
+            emit_br(ctx, ".Lend%d", c);
             emitln(".Ltrue%d:", c);
             emitln("    MOV #1, R0");
             emitln(".Lend%d:", c);
             return;
         case ND_TERNARY:
-            c = labelseq++;
-            gen_expr(node->cond);
+            c = ctx->labelseq++;
+            gen_expr(ctx, node->cond);
             emitln("    TST R0");
-            emit_beq(".Lelse%d", c);
-            gen_expr(node->then);
-            emit_br(".Lend%d", c);
+            emit_beq(ctx, ".Lelse%d", c);
+            gen_expr(ctx, node->then);
+            emit_br(ctx, ".Lend%d", c);
             emitln(".Lelse%d:", c);
-            gen_expr(node->els);
+            gen_expr(ctx, node->els);
             emitln(".Lend%d:", c);
             return;
         case ND_FUNCALL: {
@@ -532,7 +536,7 @@ static void gen_expr(Node *node) {
             }
 
             while (nargs--) {
-                gen_expr(args[nargs]);
+                gen_expr(ctx, args[nargs]);
                 push_r0();
             }
             if (is_sret) {
@@ -555,22 +559,22 @@ static void gen_expr(Node *node) {
     }
 }
 
-static void gen_stmt(Node *node) {
+static void gen_stmt(CodegenContext *ctx, Node *node) {
     int c;
 
     switch (node->kind) {
         case ND_RETURN:
-            if (current_fn_obj && current_fn_obj->has_sret) {
+            if (ctx->current_fn_obj && ctx->current_fn_obj->has_sret) {
                 if (node->lhs) {
-                    int size = current_fn_obj->ty->return_ty->size;
+                    int size = ctx->current_fn_obj->ty->return_ty->size;
                     if (node->lhs->kind == ND_FUNCALL &&
                         (node->lhs->ty->kind == TY_STRUCT || node->lhs->ty->kind == TY_UNION)) {
                         emitln("    MOV 4(R4), R3");
-                        gen_expr(node->lhs); /* src in R0 */
+                        gen_expr(ctx, node->lhs); /* src in R0 */
                         emitln("    MOV R3, R2");
                     } else {
                         emitln("    MOV 4(R4), R2");
-                        gen_addr(node->lhs);
+                        gen_addr(ctx, node->lhs);
                     }
                     emitln("    MOV #%d, R1", size);
                     emitln("    MOV R1, -(R6)");
@@ -583,107 +587,107 @@ static void gen_stmt(Node *node) {
                         emitln("    ADD #%d, R6", size);
                     }
                 }
-                emit_br_name(".Lreturn_%s", current_fn);
+                emit_br_name(ctx, ".Lreturn_%s", ctx->current_fn);
                 return;
             }
-            if (node->lhs) gen_expr(node->lhs);
-            emit_br_name(".Lreturn_%s", current_fn);
+            if (node->lhs) gen_expr(ctx, node->lhs);
+            emit_br_name(ctx, ".Lreturn_%s", ctx->current_fn);
             return;
         case ND_IF:
-            c = labelseq++;
-            gen_expr(node->cond);
+            c = ctx->labelseq++;
+            gen_expr(ctx, node->cond);
             emitln("    TST R0");
-            emit_beq(".Lelse%d", c);
-            gen_stmt(node->then);
-            emit_br(".Lend%d", c);
+            emit_beq(ctx, ".Lelse%d", c);
+            gen_stmt(ctx, node->then);
+            emit_br(ctx, ".Lend%d", c);
             emitln(".Lelse%d:", c);
-            if (node->els) gen_stmt(node->els);
+            if (node->els) gen_stmt(ctx, node->els);
             emitln(".Lend%d:", c);
             return;
         case ND_WHILE:
-            c = labelseq++;
+            c = ctx->labelseq++;
             emitln(".Lbegin%d:", c);
             emitln(".Lcontinue%d:", c);
-            gen_expr(node->cond);
+            gen_expr(ctx, node->cond);
             emitln("    TST R0");
-            emit_beq(".Lend%d", c);
-            push_break(c);
-            push_continue(c);
-            gen_stmt(node->body);
-            pop_continue();
-            pop_break();
-            emit_br(".Lbegin%d", c);
+            emit_beq(ctx, ".Lend%d", c);
+            push_break(ctx, c);
+            push_continue(ctx, c);
+            gen_stmt(ctx, node->body);
+            pop_continue(ctx);
+            pop_break(ctx);
+            emit_br(ctx, ".Lbegin%d", c);
             emitln(".Lend%d:", c);
             return;
         case ND_FOR: {
-            int begin = labelseq++;
-            int end = labelseq++;
-            int cont = labelseq++;
+            int begin = ctx->labelseq++;
+            int end = ctx->labelseq++;
+            int cont = ctx->labelseq++;
             if (node->init) {
                 if (node->init->kind == ND_BLOCK || node->init->kind == ND_EXPR_STMT || node->init->kind == ND_NULL)
-                    gen_stmt(node->init);
+                    gen_stmt(ctx, node->init);
                 else
-                    gen_expr(node->init);
+                    gen_expr(ctx, node->init);
             }
             emitln(".Lbegin%d:", begin);
             if (node->cond) {
-                gen_expr(node->cond);
+                gen_expr(ctx, node->cond);
                 emitln("    TST R0");
-                emit_beq(".Lend%d", end);
+                emit_beq(ctx, ".Lend%d", end);
             }
-            push_break(end);
-            push_continue(cont);
-            gen_stmt(node->body);
+            push_break(ctx, end);
+            push_continue(ctx, cont);
+            gen_stmt(ctx, node->body);
             emitln(".Lcontinue%d:", cont);
-            if (node->inc) gen_expr(node->inc);
-            pop_continue();
-            pop_break();
-            emit_br(".Lbegin%d", begin);
+            if (node->inc) gen_expr(ctx, node->inc);
+            pop_continue(ctx);
+            pop_break(ctx);
+            emit_br(ctx, ".Lbegin%d", begin);
             emitln(".Lend%d:", end);
             return;
         }
         case ND_BREAK:
-            if (current_break() >= 0)
-                emit_br(".Lend%d", current_break());
+            if (current_break(ctx) >= 0)
+                emit_br(ctx, ".Lend%d", current_break(ctx));
             return;
         case ND_CONTINUE:
-            if (current_continue() >= 0)
-                emit_br(".Lcontinue%d", current_continue());
+            if (current_continue(ctx) >= 0)
+                emit_br(ctx, ".Lcontinue%d", current_continue(ctx));
             return;
         case ND_SWITCH: {
-            int end = labelseq++;
+            int end = ctx->labelseq++;
             Node *cnode;
-            gen_expr(node->cond);
+            gen_expr(ctx, node->cond);
             for (cnode = node->case_next; cnode; cnode = cnode->case_next) {
-                cnode->case_label = labelseq++;
+                cnode->case_label = ctx->labelseq++;
                 emitln("    CMP #%ld, R0", cnode->val);
-                emit_beq(".Lcase%d", cnode->case_label);
+                emit_beq(ctx, ".Lcase%d", cnode->case_label);
             }
             if (node->default_case) {
-                node->default_case->case_label = labelseq++;
-                emit_br(".Lcase%d", node->default_case->case_label);
+                node->default_case->case_label = ctx->labelseq++;
+                emit_br(ctx, ".Lcase%d", node->default_case->case_label);
             } else {
-                emit_br(".Lend%d", end);
+                emit_br(ctx, ".Lend%d", end);
             }
-            push_break(end);
-            gen_stmt(node->body);
-            pop_break();
+            push_break(ctx, end);
+            gen_stmt(ctx, node->body);
+            pop_break(ctx);
             emitln(".Lend%d:", end);
             return;
         }
         case ND_CASE:
             emitln(".Lcase%d:", node->case_label);
-            if (node->body) gen_stmt(node->body);
+            if (node->body) gen_stmt(ctx, node->body);
             return;
         case ND_BLOCK: {
             Node *stmt;
             for (stmt = node->body; stmt; stmt = stmt->next) {
-                gen_stmt(stmt);
+                gen_stmt(ctx, stmt);
             }
             return;
         }
         case ND_EXPR_STMT:
-            if (node->lhs) gen_expr(node->lhs);
+            if (node->lhs) gen_expr(ctx, node->lhs);
             return;
         case ND_NULL:
             return;
@@ -707,7 +711,9 @@ static void emit_global_data(Obj *var) {
 
 void codegen(Obj *prog, FILE *outfp) {
     Obj *fn;
+    CodegenContext ctx;
 
+    memset(&ctx, 0, sizeof(ctx));
     emit_init(outfp);
     emitln(".ORIG 0x1000");
     runtime_emit_startup();
@@ -715,27 +721,27 @@ void codegen(Obj *prog, FILE *outfp) {
     for (fn = prog; fn; fn = fn->next) {
         if (!fn->is_function) continue;
         if (!fn->body) continue;
-        current_fn = fn->asm_name;
-        current_fn_obj = fn;
+        ctx.current_fn = fn->asm_name;
+        ctx.current_fn_obj = fn;
         emitln("%s:", fn->asm_name);
         emitln("    MOV R4, -(R6)");
         emitln("    MOV R6, R4");
         if (fn->stack_size)
             emitln("    SUB #%d, R6", fn->stack_size);
-        gen_stmt(fn->body);
+        gen_stmt(&ctx, fn->body);
         emitln(".Lreturn_%s:", fn->asm_name);
         emitln("    MOV R4, R6");
         emitln("    MOV (R6)+, R4");
         emitln("    RTS R5");
     }
 
-    emitln("__data_start:");
+    emit_label("__data_start");
     for (fn = prog; fn; fn = fn->next) {
         if (fn->is_function) continue;
         emit_global_data(fn);
     }
     runtime_emit_data();
-    emitln("__data_end:");
+    emit_label("__data_end");
 
     runtime_emit_functions();
 }

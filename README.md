@@ -86,6 +86,17 @@ pdp11_set_bank(int bank);
 - Output is PDP-11 assembly for the simulator's built-in assembler.
 - The compiler currently targets a compact, K&R-style subset of C89.
 
+## Source Layout
+
+- `src/codegen.c`: AST -> PDP-11 assembly emission.
+- `src/runtime.c`: Runtime/trap helpers emitted into every output (stdio, file I/O, math helpers).
+- `src/emitter.c`: Shared `emitln()` and output setup.
+
+### Banked Data Safety
+
+Runtime globals (`__rt_*`) are accessed via register-deferred loads/stores to
+ensure data comes from the active data bank (bank 1), not from code bank 0.
+
 ## Supported (current)
 
 - Types: `int`, `char`, `void`, pointers, fixed-size arrays, `struct`/`union`/`enum`, function declarations/definitions.

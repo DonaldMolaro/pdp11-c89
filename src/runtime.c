@@ -23,12 +23,12 @@ static void emit_data_clr(const char *label, const char *tmp) {
 }
 
 void runtime_emit_startup(void) {
-    emitln("_start:");
+    emit_label("_start");
     emitln("    MOV #0, R0");
     emitln("    TRAP #26"); /* select data bank 0 */
     emitln("    MOV #__data_start, R1");
     emitln("    MOV #__data_end, R2");
-    emitln(".Ldata_copy:");
+    emit_label(".Ldata_copy");
     emitln("    CMP R1, R2");
     emitln("    BEQ .Ldata_copy_done");
     emitln("    MOV (R1), R3"); /* read from bank 0 */
@@ -39,7 +39,7 @@ void runtime_emit_startup(void) {
     emitln("    TRAP #26"); /* back to bank 0 */
     emitln("    ADD #2, R1");
     emitln("    BR .Ldata_copy");
-    emitln(".Ldata_copy_done:");
+    emit_label(".Ldata_copy_done");
     emitln("    MOV #1, R0");
     emitln("    TRAP #26"); /* leave data bank at 1 */
     emitln("    MOV #0xFFFE, R6");
@@ -68,7 +68,7 @@ void runtime_emit_data(void) {
     emitln("    .WORD 0x0000");
 }
 
-void runtime_emit_functions(void) {
+static void emit_runtime_stdio(void) {
     emitln("putchar:");
     emitln("    MOV R4, -(R6)");
     emitln("    MOV R6, R4");
@@ -95,7 +95,9 @@ void runtime_emit_functions(void) {
     emitln("    MOV R4, R6");
     emitln("    MOV (R6)+, R4");
     emitln("    RTS R5");
+}
 
+static void emit_runtime_format(void) {
     emitln("print_uint:");
     emitln("    MOV R4, -(R6)");
     emitln("    MOV R6, R4");
@@ -279,7 +281,9 @@ void runtime_emit_functions(void) {
     emitln("    MOV R4, R6");
     emitln("    MOV (R6)+, R4");
     emitln("    RTS R5");
+}
 
+static void emit_runtime_fileio(void) {
     emitln("fopen:");
     emitln("    MOV R4, -(R6)");
     emitln("    MOV R6, R4");
@@ -650,7 +654,9 @@ void runtime_emit_functions(void) {
     emitln("    MOV R4, R6");
     emitln("    MOV (R6)+, R4");
     emitln("    RTS R5");
+}
 
+static void emit_runtime_math(void) {
     emitln("__memcpy:");
     emitln("    MOV R4, -(R6)");
     emitln("    MOV R6, R4");
@@ -1013,3 +1019,11 @@ void runtime_emit_functions(void) {
     emitln("    MOV (R6)+, R4");
     emitln("    RTS R5");
 }
+
+void runtime_emit_functions(void) {
+    emit_runtime_stdio();
+    emit_runtime_format();
+    emit_runtime_fileio();
+    emit_runtime_math();
+}
+

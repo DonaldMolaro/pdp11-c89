@@ -16,3 +16,11 @@ void emitln(const char *fmt, ...) {
     va_end(ap);
     fprintf(out, "\n");
 }
+
+void emit_label(const char *label) {
+    emitln("%s:", label);
+}
+
+void emit_jmp(const char *label) {
+    emitln("    JMP %s", label);
+}
