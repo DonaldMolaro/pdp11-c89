@@ -1,25 +1,6 @@
 #include "runtime.h"
+#include "runtime_helpers.h"
 #include "emitter.h"
-
-static void emit_data_load(const char *label, const char *reg, const char *tmp) {
-    emitln("    MOV #%s, %s", label, tmp);
-    emitln("    MOV (%s), %s", tmp, reg);
-}
-
-static void emit_data_load_byte(const char *label, const char *reg, const char *tmp) {
-    emitln("    MOV #%s, %s", label, tmp);
-    emitln("    MOVB (%s), %s", tmp, reg);
-}
-
-static void emit_data_store(const char *label, const char *reg, const char *tmp) {
-    emitln("    MOV #%s, %s", label, tmp);
-    emitln("    MOV %s, (%s)", reg, tmp);
-}
-
-static void emit_data_clr(const char *label, const char *tmp) {
-    emitln("    MOV #%s, %s", label, tmp);
-    emitln("    CLR (%s)", tmp);
-}
 
 void runtime_emit_fileio(void) {
     emitln("fopen:");

@@ -6,12 +6,14 @@ SRC = \
 	src/tokenize.c \
 	src/parser.c \
 	src/type.c \
+	src/parser_scope.c \
 	src/ast.c \
 	src/sema.c \
 	src/emitter.c \
 	src/emit_utils.c \
 	src/runtime.c \
 	src/runtime_startup.c \
+	src/runtime_helpers.c \
 	src/runtime_stdio.c \
 	src/runtime_format.c \
 	src/runtime_fileio.c \
@@ -19,6 +21,8 @@ SRC = \
 	src/codegen_expr.c \
 	src/codegen_stmt.c \
 	src/codegen_addr.c \
+	src/codegen_functions.c \
+	src/codegen_globals.c \
 	src/codegen.c \
 	src/util.c \
 	src/preprocess.c
@@ -55,13 +59,13 @@ examples: pdp11cc
 sim-input:
 	@echo "Building sim input file..."
 	@OUT=$${OUT:-tests/sim_input.txt}; \
-	FILES=$${FILES:-src/main_sim.c src/tokenize.c src/parser.c src/type.c src/ast.c src/sema.c src/codegen.c src/codegen_expr.c src/codegen_stmt.c src/codegen_addr.c src/util.c src/preprocess.c src/emitter.c src/emit_utils.c src/runtime.c src/runtime_startup.c src/runtime_stdio.c src/runtime_format.c src/runtime_fileio.c src/runtime_math.c src/sim_support.c}; \
+	FILES=$${FILES:-src/main_sim.c src/tokenize.c src/parser.c src/parser_scope.c src/type.c src/ast.c src/sema.c src/codegen.c src/codegen_expr.c src/codegen_stmt.c src/codegen_addr.c src/util.c src/preprocess.c src/emitter.c src/emit_utils.c src/runtime.c src/runtime_startup.c src/runtime_helpers.c src/runtime_stdio.c src/runtime_format.c src/runtime_fileio.c src/runtime_math.c src/sim_support.c}; \
 	tools/mk_sim_input.sh $$OUT $$FILES
 
 sim-paths:
 	@echo "Building sim PATH list..."
 	@OUT=$${OUT:-tests/sim_paths.txt}; \
-	FILES=$${FILES:-src/main_sim.c src/tokenize.c src/parser.c src/type.c src/ast.c src/sema.c src/codegen.c src/codegen_expr.c src/codegen_stmt.c src/codegen_addr.c src/util.c src/preprocess.c src/emitter.c src/emit_utils.c src/runtime.c src/runtime_startup.c src/runtime_stdio.c src/runtime_format.c src/runtime_fileio.c src/runtime_math.c src/sim_support.c}; \
+	FILES=$${FILES:-src/main_sim.c src/tokenize.c src/parser.c src/parser_scope.c src/type.c src/ast.c src/sema.c src/codegen.c src/codegen_expr.c src/codegen_stmt.c src/codegen_addr.c src/util.c src/preprocess.c src/emitter.c src/emit_utils.c src/runtime.c src/runtime_startup.c src/runtime_helpers.c src/runtime_stdio.c src/runtime_format.c src/runtime_fileio.c src/runtime_math.c src/sim_support.c}; \
 	tools/mk_sim_paths.sh $$OUT $$FILES
 
 bootstrap: sim-paths pdp11cc
@@ -70,7 +74,7 @@ bootstrap: sim-paths pdp11cc
 	ASM1=tests/pdp11cc_sim.asm; \
 	ASM1_OUT=tests/pdp11cc_sim_paths_out.asm; \
 	ASM2_OUT=tests/pdp11cc_sim_paths_out2.asm; \
-	./pdp11cc src/main_sim.c src/tokenize.c src/parser.c src/type.c src/ast.c src/sema.c src/codegen.c src/codegen_expr.c src/codegen_stmt.c src/codegen_addr.c src/util.c src/preprocess.c src/emitter.c src/emit_utils.c src/runtime.c src/runtime_startup.c src/runtime_stdio.c src/runtime_format.c src/runtime_fileio.c src/runtime_math.c src/sim_support.c -o $$ASM1; \
+	./pdp11cc src/main_sim.c src/tokenize.c src/parser.c src/parser_scope.c src/type.c src/ast.c src/sema.c src/codegen.c src/codegen_expr.c src/codegen_stmt.c src/codegen_addr.c src/codegen_functions.c src/codegen_globals.c src/util.c src/preprocess.c src/emitter.c src/emit_utils.c src/runtime.c src/runtime_startup.c src/runtime_helpers.c src/runtime_stdio.c src/runtime_format.c src/runtime_fileio.c src/runtime_math.c src/sim_support.c -o $$ASM1; \
 	$$SIM $$ASM1 < tests/sim_paths.txt | sed '/^HALT=/d;/^R[0-7]=/d;/^N=/d' > $$ASM1_OUT; \
 	$$SIM $$ASM1_OUT < tests/sim_paths.txt | sed '/^HALT=/d;/^R[0-7]=/d;/^N=/d' > $$ASM2_OUT; \
 	if diff -q $$ASM1_OUT $$ASM2_OUT >/dev/null 2>&1; then \

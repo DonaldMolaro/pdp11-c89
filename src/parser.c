@@ -1,38 +1,10 @@
 #include "compiler.h"
+#include "parser_scope.h"
 
 #include <stdio.h>
 #include <string.h>
 
 static Token *token;
-
-typedef struct VarScope VarScope;
-struct VarScope {
-    VarScope *next;
-    char *name;
-    Obj *var;
-};
-
-typedef struct TagScope TagScope;
-struct TagScope {
-    TagScope *next;
-    char *name;
-    Type *ty;
-};
-
-typedef struct TypedefScope TypedefScope;
-struct TypedefScope {
-    TypedefScope *next;
-    char *name;
-    Type *ty;
-};
-
-typedef struct Scope Scope;
-struct Scope {
-    Scope *next;
-    VarScope *vars;
-    TagScope *tags;
-    TypedefScope *typedefs;
-};
 
 static Scope *scope;
 static Obj *locals;
@@ -64,84 +36,14 @@ static char *make_asm_name(const char *name, int is_static) {
     return buf;
 }
 
-static void enter_scope(void) {
-    Scope *sc = xcalloc(1, sizeof(Scope));
-    sc->next = scope;
-    scope = sc;
-}
-
-static void leave_scope(void) {
-    scope = scope->next;
-}
-
-static void push_scope(char *name, Obj *var) {
-    VarScope *sc = xcalloc(1, sizeof(VarScope));
-    sc->name = name;
-    sc->var = var;
-    sc->next = scope->vars;
-    scope->vars = sc;
-}
-
-static void push_tag_scope(char *name, Type *ty) {
-    TagScope *sc = xcalloc(1, sizeof(TagScope));
-    sc->name = name;
-    sc->ty = ty;
-    sc->next = scope->tags;
-    scope->tags = sc;
-}
-
-static void push_typedef_scope(char *name, Type *ty) {
-    TypedefScope *sc = xcalloc(1, sizeof(TypedefScope));
-    sc->name = name;
-    sc->ty = ty;
-    sc->next = scope->typedefs;
-    scope->typedefs = sc;
-}
-
-static Type *find_typedef(Token *tok) {
-    Scope *sc;
-    TypedefScope *td;
-
-    for (sc = scope; sc; sc = sc->next) {
-        for (td = sc->typedefs; td; td = td->next) {
-            if (strlen(td->name) == (size_t)tok->len &&
-                strncmp(td->name, tok->loc, tok->len) == 0) {
-                return td->ty;
-            }
-        }
-    }
-    return NULL;
-}
-
-static Type *find_tag(Token *tok) {
-    Scope *sc;
-    TagScope *tag;
-
-    for (sc = scope; sc; sc = sc->next) {
-        for (tag = sc->tags; tag; tag = tag->next) {
-            if (strlen(tag->name) == (size_t)tok->len &&
-                strncmp(tag->name, tok->loc, tok->len) == 0) {
-                return tag->ty;
-            }
-        }
-    }
-    return NULL;
-}
-
-static Obj *find_var(Token *tok) {
-    Scope *sc;
-    VarScope *var;
-
-    for (sc = scope; sc; sc = sc->next) {
-        for (var = sc->vars; var; var = var->next) {
-            if (strlen(var->name) == (size_t)tok->len &&
-                strncmp(var->name, tok->loc, tok->len) == 0) {
-                return var->var;
-            }
-        }
-    }
-    return NULL;
-}
+static void enter_scope(void) { scope = scope_enter(scope); }
+static void leave_scope(void) { scope = scope_leave(scope); }
+static void push_scope(char *name, Obj *var) { scope_push_var(scope, name, var); }
+static void push_tag_scope(char *name, Type *ty) { scope_push_tag(scope, name, ty); }
+static void push_typedef_scope(char *name, Type *ty) { scope_push_typedef(scope, name, ty); }
+static Type *find_typedef(Token *tok) { return scope_find_typedef(scope, tok); }
+static Type *find_tag(Token *tok) { return scope_find_tag(scope, tok); }
+static Obj *find_var(Token *tok) { return scope_find_var(scope, tok); }
 
 static int consume(int kind) {
     if (token->kind != kind) return 0;
@@ -264,7 +166,9 @@ static Type *struct_decl(int is_union) {
         if (tag) {
             Type *existing = find_tag(tag);
             if (existing) {
-                if (!existing->is_incomplete) error_at(tag->loc, "redefinition of struct/union");
+                if (!existing->is_incomplete) {
+                    return existing;
+                }
                 ty = struct_type(is_union, existing->tag, members);
                 existing->members = ty->members;
                 existing->size = ty->size;
@@ -909,7 +813,7 @@ Obj *parse(Token *tok) {
 static void init_parser_state(Token *tok) {
     token = tok;
     globals = NULL;
-    scope = NULL;
+    scope = scope_create();
     locals = NULL;
     current_fn = NULL;
     current_switch = NULL;

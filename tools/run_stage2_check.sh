@@ -15,6 +15,7 @@ sh "$ROOT/tools/mk_bootstrap_input.sh" "$BOOT"
   "$ROOT/src/main_sim.c" \
   "$ROOT/src/tokenize.c" \
   "$ROOT/src/parser.c" \
+  "$ROOT/src/parser_scope.c" \
   "$ROOT/src/type.c" \
   "$ROOT/src/ast.c" \
   "$ROOT/src/sema.c" \
@@ -22,12 +23,15 @@ sh "$ROOT/tools/mk_bootstrap_input.sh" "$BOOT"
   "$ROOT/src/codegen_expr.c" \
   "$ROOT/src/codegen_stmt.c" \
   "$ROOT/src/codegen_addr.c" \
+  "$ROOT/src/codegen_functions.c" \
+  "$ROOT/src/codegen_globals.c" \
   "$ROOT/src/util.c" \
   "$ROOT/src/preprocess.c" \
   "$ROOT/src/emitter.c" \
   "$ROOT/src/emit_utils.c" \
   "$ROOT/src/runtime.c" \
   "$ROOT/src/runtime_startup.c" \
+  "$ROOT/src/runtime_helpers.c" \
   "$ROOT/src/runtime_stdio.c" \
   "$ROOT/src/runtime_format.c" \
   "$ROOT/src/runtime_fileio.c" \

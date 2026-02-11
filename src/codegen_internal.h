@@ -16,5 +16,7 @@ typedef struct CodegenContext {
 void gen_stmt(CodegenContext *ctx, Node *node);
 void gen_expr(CodegenContext *ctx, Node *node);
 void gen_addr(CodegenContext *ctx, Node *node);
+void codegen_emit_functions(Obj *prog);
+void codegen_emit_globals(Obj *prog);
 
 #endif

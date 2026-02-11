@@ -24,6 +24,8 @@ HEADER_TMP="/tmp/pdp11cc_bootstrap_headers.$$"
 } > "$HEADER_TMP"
 
 {
+  cat "$HEADER_TMP"
+  echo
   for f in "$ROOT"/src/*.c; do
     case "$f" in
       */main.c) continue ;;
@@ -31,13 +33,11 @@ HEADER_TMP="/tmp/pdp11cc_bootstrap_headers.$$"
       */preprocess_sim.c) continue ;;
     esac
     echo "//--FILE:$f"
-    cat "$HEADER_TMP"
     sed '/^#/d' "$f"
     echo
   done
   # Add simulator entrypoint last.
   echo "//--FILE:src/main_sim.c"
-  cat "$HEADER_TMP"
   sed '/^#/d' "$ROOT/src/main_sim.c"
   echo
 } > "$OUT"
