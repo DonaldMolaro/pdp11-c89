@@ -876,7 +876,17 @@ static void emit_runtime(void) {
     emitln("fseek:");
     emitln("    MOV R4, -(R6)");
     emitln("    MOV R6, R4");
+    emitln("    MOV 4(R4), R0"); /* handle */
+    emitln("    TST R0");
+    emitln("    BEQ .Lfseek_bad");
+    emitln("    DEC R0"); /* back to handle */
+    emitln("    MOV 6(R4), R1"); /* offset */
+    emitln("    MOV 8(R4), R2"); /* whence */
+    emitln("    TRAP #24");
+    emitln("    BR .Lfseek_ret");
+    emitln(".Lfseek_bad:");
     emitln("    MOV #0xFFFF, R0");
+    emitln(".Lfseek_ret:");
     emitln("    MOV R4, R6");
     emitln("    MOV (R6)+, R4");
     emitln("    RTS R5");
@@ -884,7 +894,24 @@ static void emit_runtime(void) {
     emitln("ftell:");
     emitln("    MOV R4, -(R6)");
     emitln("    MOV R6, R4");
+    emitln("    MOV 4(R4), R0"); /* handle */
+    emitln("    TST R0");
+    emitln("    BEQ .Lftell_bad");
+    emitln("    DEC R0"); /* back to handle */
+    emitln("    TRAP #25");
+    emitln("    BR .Lftell_ret");
+    emitln(".Lftell_bad:");
     emitln("    MOV #0xFFFF, R0");
+    emitln(".Lftell_ret:");
+    emitln("    MOV R4, R6");
+    emitln("    MOV (R6)+, R4");
+    emitln("    RTS R5");
+
+    emitln("pdp11_set_bank:");
+    emitln("    MOV R4, -(R6)");
+    emitln("    MOV R6, R4");
+    emitln("    MOV 4(R4), R0"); /* bank */
+    emitln("    TRAP #26");
     emitln("    MOV R4, R6");
     emitln("    MOV (R6)+, R4");
     emitln("    RTS R5");
@@ -1258,6 +1285,24 @@ void codegen(Obj *prog, FILE *outfp) {
     out = outfp;
     emitln(".ORIG 0x1000");
     emitln("_start:");
+    emitln("    MOV #0, R0");
+    emitln("    TRAP #26"); /* select data bank 0 */
+    emitln("    MOV #__data_start, R1");
+    emitln("    MOV #__data_end, R2");
+    emitln(".Ldata_copy:");
+    emitln("    CMP R1, R2");
+    emitln("    BEQ .Ldata_copy_done");
+    emitln("    MOV (R1), R3"); /* read from bank 0 */
+    emitln("    MOV #1, R0");
+    emitln("    TRAP #26"); /* switch to bank 1 */
+    emitln("    MOV R3, (R1)"); /* write to bank 1 */
+    emitln("    MOV #0, R0");
+    emitln("    TRAP #26"); /* back to bank 0 */
+    emitln("    ADD #2, R1");
+    emitln("    BR .Ldata_copy");
+    emitln(".Ldata_copy_done:");
+    emitln("    MOV #1, R0");
+    emitln("    TRAP #26"); /* leave data bank at 1 */
     emitln("    MOV #0xFFFE, R6");
     emitln("    JSR R5, main");
     emitln("    HALT");
@@ -1279,10 +1324,12 @@ void codegen(Obj *prog, FILE *outfp) {
         emitln("    RTS R5");
     }
 
+    emitln("__data_start:");
     for (fn = prog; fn; fn = fn->next) {
         if (fn->is_function) continue;
         emit_global_data(fn);
     }
+    emitln("__data_end:");
 
     emit_runtime();
 }

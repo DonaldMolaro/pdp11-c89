@@ -49,6 +49,38 @@ Notes:
 - `src/sim_support.c` provides minimal libc + allocator + printf formatting.
 - The helper script embeds headers and strips preprocessor lines.
 
+## File-Based In-Sim Bootstrap (PATH Protocol)
+
+With file I/O TRAPs (`#20-#25`) available, the in-sim compiler can read files
+directly. Provide a PATH list on stdin:
+
+```sh
+make sim-paths
+/Users/donaldmolaro/src/pdp-11/build/pdp11sim tests/pdp11cc_sim.asm < tests/sim_paths.txt > tests/pdp11cc_sim_paths_out.asm
+```
+
+The PATH list looks like:
+```
+PATH src/main_sim.c
+PATH src/tokenize.c
+...
+```
+
+## Banked Data (Simulator TRAP #26)
+
+The compiler startup now uses the simulator's banked data mode:
+- Copies the global data segment from bank 0 to bank 1.
+- Switches the data bank to 1 before calling `main`.
+
+This separates code (always fetched from bank 0) from data (bank 1), which
+helps large in-sim builds fit by giving a full 64K data bank alongside the
+64K code bank.
+
+You can switch banks explicitly from C using:
+```
+pdp11_set_bank(int bank);
+```
+
 ## Notes
 
 - Output is PDP-11 assembly for the simulator's built-in assembler.

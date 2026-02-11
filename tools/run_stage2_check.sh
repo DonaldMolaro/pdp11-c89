@@ -20,6 +20,7 @@ sh "$ROOT/tools/mk_bootstrap_input.sh" "$BOOT"
   "$ROOT/src/sema.c" \
   "$ROOT/src/codegen.c" \
   "$ROOT/src/util.c" \
+  "$ROOT/src/preprocess.c" \
   "$ROOT/src/sim_support.c" \
   -o "$ASM1"
 
