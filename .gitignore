@@ -10,3 +10,4 @@ tests/bootstrap.c
 tests/sim_paths.txt
 tests/stage2.diff
 pdp11cc
+*.o

@@ -714,6 +714,27 @@ static void emit_global_data(Obj *var) {
     }
 }
 
+static void emit_runtime_data(void) {
+    emitln("stdin:");
+    emitln("    .WORD 0x0000");
+    emitln("stdout:");
+    emitln("    .WORD 0x0000");
+    emitln("stderr:");
+    emitln("    .WORD 0x0000");
+    emitln("__rt_fgetc_buf:");
+    emitln("    .WORD 0x0000");
+    emitln("__rt_ungetc_fp:");
+    emitln("    .WORD 0x0000");
+    emitln("__rt_ungetc_ch:");
+    emitln("    .WORD 0x0000");
+    emitln("__rt_ungetc_has:");
+    emitln("    .WORD 0x0000");
+    emitln("__rt_feof_flag:");
+    emitln("    .WORD 0x0000");
+    emitln("__rt_ferror_flag:");
+    emitln("    .WORD 0x0000");
+}
+
 static void emit_runtime(void) {
     emitln("putchar:");
     emitln("    MOV R4, -(R6)");
@@ -912,6 +933,215 @@ static void emit_runtime(void) {
     emitln("    MOV R6, R4");
     emitln("    MOV 4(R4), R0"); /* bank */
     emitln("    TRAP #26");
+    emitln("    MOV R4, R6");
+    emitln("    MOV (R6)+, R4");
+    emitln("    RTS R5");
+
+    emitln("fgetc:");
+    emitln("    MOV R4, -(R6)");
+    emitln("    MOV R6, R4");
+    emitln("    MOV 4(R4), R0"); /* fp */
+    emitln("    MOV #__rt_ungetc_has, R1");
+    emitln("    MOV (R1), R1");
+    emitln("    TST R1");
+    emitln("    BEQ .Lfgetc_read");
+    emitln("    MOV #__rt_ungetc_fp, R1");
+    emitln("    MOV (R1), R1");
+    emitln("    CMP R1, R0");
+    emitln("    BNE .Lfgetc_read");
+    emitln("    MOV #__rt_ungetc_ch, R1");
+    emitln("    MOV (R1), R0");
+    emitln("    MOV #__rt_ungetc_has, R1");
+    emitln("    CLR (R1)");
+    emitln("    BR .Lfgetc_ret");
+    emitln(".Lfgetc_read:");
+    emitln("    TST R0");
+    emitln("    BEQ .Lfgetc_stdin");
+    emitln(".Lfgetc_file:");
+    emitln("    MOV 4(R4), R0"); /* fp */
+    emitln("    DEC R0"); /* handle */
+    emitln("    MOV #__rt_fgetc_buf, R1");
+    emitln("    MOV #1, R2");
+    emitln("    TRAP #21");
+    emitln("    CMP #1, R0");
+    emitln("    BNE .Lfgetc_eof");
+    emitln("    MOV #__rt_fgetc_buf, R1");
+    emitln("    MOVB (R1), R0");
+    emitln("    MOV #__rt_feof_flag, R1");
+    emitln("    CLR (R1)");
+    emitln("    BR .Lfgetc_ret");
+    emitln(".Lfgetc_eof:");
+    emitln("    MOV #__rt_feof_flag, R1");
+    emitln("    MOV #1, (R1)");
+    emitln("    MOV #0xFFFF, R0");
+    emitln("    BR .Lfgetc_ret");
+    emitln(".Lfgetc_stdin:");
+    emitln("    TRAP #2");
+    emitln("    CMP #0, R0");
+    emitln("    BNE .Lfgetc_stdin_ok");
+    emitln("    MOV #__rt_feof_flag, R1");
+    emitln("    MOV #1, (R1)");
+    emitln("    MOV #0xFFFF, R0");
+    emitln("    BR .Lfgetc_ret");
+    emitln(".Lfgetc_stdin_ok:");
+    emitln("    MOV #__rt_feof_flag, R1");
+    emitln("    CLR (R1)");
+    emitln(".Lfgetc_ret:");
+    emitln("    MOV R4, R6");
+    emitln("    MOV (R6)+, R4");
+    emitln("    RTS R5");
+
+    emitln("getc:");
+    emitln("    MOV R4, -(R6)");
+    emitln("    MOV R6, R4");
+    emitln("    MOV 4(R4), R0");
+    emitln("    MOV R0, -(R6)");
+    emitln("    JSR R5, fgetc");
+    emitln("    ADD #2, R6");
+    emitln("    MOV R4, R6");
+    emitln("    MOV (R6)+, R4");
+    emitln("    RTS R5");
+
+    emitln("fputc:");
+    emitln("    MOV R4, -(R6)");
+    emitln("    MOV R6, R4");
+    emitln("    MOV 4(R4), R1"); /* c */
+    emitln("    MOV 6(R4), R0"); /* fp */
+    emitln("    TST R0");
+    emitln("    BEQ .Lfputc_stdout");
+    emitln("    DEC R0"); /* handle */
+    emitln("    SUB #2, R6");
+    emitln("    MOV R6, R2"); /* buf */
+    emitln("    MOVB R1, (R2)");
+    emitln("    MOV #1, R3"); /* len */
+    emitln("    MOV R2, R1");
+    emitln("    MOV R3, R2");
+    emitln("    TRAP #22");
+    emitln("    ADD #2, R6");
+    emitln("    CMP #0, R0");
+    emitln("    BEQ .Lfputc_fail");
+    emitln("    MOV 4(R4), R0");
+    emitln("    BR .Lfputc_ret");
+    emitln(".Lfputc_stdout:");
+    emitln("    MOV 4(R4), R0");
+    emitln("    TRAP #1");
+    emitln("    MOV 4(R4), R0");
+    emitln("    BR .Lfputc_ret");
+    emitln(".Lfputc_fail:");
+    emitln("    MOV #0xFFFF, R0");
+    emitln(".Lfputc_ret:");
+    emitln("    MOV R4, R6");
+    emitln("    MOV (R6)+, R4");
+    emitln("    RTS R5");
+
+    emitln("putc:");
+    emitln("    MOV R4, -(R6)");
+    emitln("    MOV R6, R4");
+    emitln("    MOV 4(R4), R0");
+    emitln("    MOV 6(R4), R1");
+    emitln("    MOV R1, -(R6)");
+    emitln("    MOV R0, -(R6)");
+    emitln("    JSR R5, fputc");
+    emitln("    ADD #4, R6");
+    emitln("    MOV R4, R6");
+    emitln("    MOV (R6)+, R4");
+    emitln("    RTS R5");
+
+    emitln("fgets:");
+    emitln("    MOV R4, -(R6)");
+    emitln("    MOV R6, R4");
+    emitln("    MOV 4(R4), R1"); /* buf */
+    emitln("    MOV 6(R4), R2"); /* n */
+    emitln("    MOV 8(R4), R3"); /* fp */
+    emitln("    TST R2");
+    emitln("    BEQ .Lfgets_null");
+    emitln("    CMP #1, R2");
+    emitln("    BNE .Lfgets_setup");
+    emitln("    CLRB (R1)");
+    emitln("    MOV R1, R0");
+    emitln("    BR .Lfgets_ret");
+    emitln(".Lfgets_setup:");
+    emitln("    SUB #1, R2"); /* remaining = n-1 */
+    emitln("    SUB #2, R6");
+    emitln("    CLR -2(R4)"); /* saw_char = 0 */
+    emitln(".Lfgets_next:");
+    emitln("    TST R2");
+    emitln("    BEQ .Lfgets_done");
+    emitln("    MOV R1, -(R6)");
+    emitln("    MOV R2, -(R6)");
+    emitln("    MOV R3, -(R6)");
+    emitln("    JSR R5, fgetc");
+    emitln("    ADD #2, R6");
+    emitln("    MOV (R6)+, R2");
+    emitln("    MOV (R6)+, R1");
+    emitln("    CMP #0xFFFF, R0");
+    emitln("    BEQ .Lfgets_eof");
+    emitln("    MOV #1, -2(R4)"); /* saw_char = 1 */
+    emitln("    MOVB R0, (R1)+");
+    emitln("    DEC R2");
+    emitln("    CMP #0x000A, R0"); /* '\\n' */
+    emitln("    BEQ .Lfgets_done");
+    emitln("    BR .Lfgets_next");
+    emitln(".Lfgets_eof:");
+    emitln("    TST -2(R4)");
+    emitln("    BNE .Lfgets_done");
+    emitln("    ADD #2, R6");
+    emitln("    CLR R0");
+    emitln("    BR .Lfgets_ret");
+    emitln(".Lfgets_done:");
+    emitln("    CLRB (R1)");
+    emitln("    ADD #2, R6");
+    emitln("    MOV 4(R4), R0");
+    emitln("    BR .Lfgets_ret");
+    emitln(".Lfgets_null:");
+    emitln("    CLR R0");
+    emitln(".Lfgets_ret:");
+    emitln("    MOV R4, R6");
+    emitln("    MOV (R6)+, R4");
+    emitln("    RTS R5");
+
+    emitln("ungetc:");
+    emitln("    MOV R4, -(R6)");
+    emitln("    MOV R6, R4");
+    emitln("    MOV 4(R4), R0"); /* c */
+    emitln("    CMP #0xFFFF, R0");
+    emitln("    BEQ .Lungetc_ret");
+    emitln("    MOV 6(R4), R1"); /* fp */
+    emitln("    MOV #__rt_ungetc_fp, R2");
+    emitln("    MOV R1, (R2)");
+    emitln("    MOV #__rt_ungetc_ch, R2");
+    emitln("    MOV R0, (R2)");
+    emitln("    MOV #__rt_ungetc_has, R2");
+    emitln("    MOV #1, (R2)");
+    emitln("    MOV #__rt_feof_flag, R2");
+    emitln("    CLR (R2)");
+    emitln(".Lungetc_ret:");
+    emitln("    MOV R4, R6");
+    emitln("    MOV (R6)+, R4");
+    emitln("    RTS R5");
+
+    emitln("feof:");
+    emitln("    MOV R4, -(R6)");
+    emitln("    MOV R6, R4");
+    emitln("    MOV #__rt_feof_flag, R1");
+    emitln("    MOV (R1), R0");
+    emitln("    MOV R4, R6");
+    emitln("    MOV (R6)+, R4");
+    emitln("    RTS R5");
+
+    emitln("ferror:");
+    emitln("    MOV R4, -(R6)");
+    emitln("    MOV R6, R4");
+    emitln("    MOV #__rt_ferror_flag, R1");
+    emitln("    MOV (R1), R0");
+    emitln("    MOV R4, R6");
+    emitln("    MOV (R6)+, R4");
+    emitln("    RTS R5");
+
+    emitln("fflush:");
+    emitln("    MOV R4, -(R6)");
+    emitln("    MOV R6, R4");
+    emitln("    CLR R0");
     emitln("    MOV R4, R6");
     emitln("    MOV (R6)+, R4");
     emitln("    RTS R5");
@@ -1329,6 +1559,7 @@ void codegen(Obj *prog, FILE *outfp) {
         if (fn->is_function) continue;
         emit_global_data(fn);
     }
+    emit_runtime_data();
     emitln("__data_end:");
 
     emit_runtime();

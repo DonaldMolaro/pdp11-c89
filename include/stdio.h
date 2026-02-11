@@ -11,6 +11,7 @@ extern FILE *stdout;
 extern FILE *stderr;
 
 #define SEEK_SET 0
+#define SEEK_CUR 1
 #define SEEK_END 2
 
 int fprintf(FILE *fp, const char *fmt);
@@ -20,6 +21,16 @@ int sprintf(char *buf, const char *fmt);
 int getchar(void);
 int putchar(int c);
 int puts(const char *s);
+
+int fgetc(FILE *fp);
+int getc(FILE *fp);
+int fputc(int c, FILE *fp);
+int putc(int c, FILE *fp);
+char *fgets(char *buf, int n, FILE *fp);
+int ungetc(int c, FILE *fp);
+int feof(FILE *fp);
+int ferror(FILE *fp);
+int fflush(FILE *fp);
 
 FILE *fopen(const char *path, const char *mode);
 int fclose(FILE *fp);
