@@ -53,4 +53,21 @@ sim-paths:
 	FILES=$${FILES:-src/main_sim.c src/tokenize.c src/parser.c src/type.c src/ast.c src/sema.c src/codegen.c src/util.c src/preprocess.c src/sim_support.c}; \
 	tools/mk_sim_paths.sh $$OUT $$FILES
 
-.PHONY: clean stage-2-smoke examples sim-input sim-paths
+bootstrap: sim-paths pdp11cc
+	@echo "Running in-sim bootstrap (PATH protocol, 2 passes)..."
+	@SIM=/Users/donaldmolaro/src/pdp-11/build/pdp11sim; \
+	ASM1=tests/pdp11cc_sim.asm; \
+	ASM1_OUT=tests/pdp11cc_sim_paths_out.asm; \
+	ASM2_OUT=tests/pdp11cc_sim_paths_out2.asm; \
+	./pdp11cc src/main_sim.c src/tokenize.c src/parser.c src/type.c src/ast.c src/sema.c src/codegen.c src/util.c src/preprocess.c src/sim_support.c -o $$ASM1; \
+	$$SIM $$ASM1 < tests/sim_paths.txt | sed '/^HALT=/d;/^R[0-7]=/d;/^N=/d' > $$ASM1_OUT; \
+	$$SIM $$ASM1_OUT < tests/sim_paths.txt | sed '/^HALT=/d;/^R[0-7]=/d;/^N=/d' > $$ASM2_OUT; \
+	if diff -q $$ASM1_OUT $$ASM2_OUT >/dev/null 2>&1; then \
+		echo "Bootstrap: OK (stage1_out == stage2_out)"; \
+	else \
+		echo "Bootstrap: MISMATCH"; \
+		diff -u $$ASM1_OUT $$ASM2_OUT > tests/stage2.diff || true; \
+		exit 1; \
+	fi
+
+.PHONY: clean stage-2-smoke examples sim-input sim-paths bootstrap
