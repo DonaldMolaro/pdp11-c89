@@ -336,6 +336,7 @@ static Type *declarator(Type *ty, char **name, Obj **params) {
 static Node *stmt(void);
 static Node *expr(void);
 static long eval_const(Node *node);
+static long eval_const_with_msg(Node *node, const char *msg);
 static Node *declaration_stmt(void);
 
 static Node *primary(void) {
@@ -604,22 +605,26 @@ static Node *expr(void) {
 }
 
 static long eval_const(Node *node) {
+    return eval_const_with_msg(node, "case value must be constant");
+}
+
+static long eval_const_with_msg(Node *node, const char *msg) {
     switch (node->kind) {
         case ND_NUM: return node->val;
-        case ND_NEG: return -eval_const(node->lhs);
-        case ND_BITNOT: return ~eval_const(node->lhs);
-        case ND_ADD: return eval_const(node->lhs) + eval_const(node->rhs);
-        case ND_SUB: return eval_const(node->lhs) - eval_const(node->rhs);
-        case ND_MUL: return eval_const(node->lhs) * eval_const(node->rhs);
-        case ND_DIV: return eval_const(node->lhs) / eval_const(node->rhs);
-        case ND_MOD: return eval_const(node->lhs) % eval_const(node->rhs);
-        case ND_BITAND: return eval_const(node->lhs) & eval_const(node->rhs);
-        case ND_BITOR: return eval_const(node->lhs) | eval_const(node->rhs);
-        case ND_BITXOR: return eval_const(node->lhs) ^ eval_const(node->rhs);
-        case ND_SHL: return eval_const(node->lhs) << eval_const(node->rhs);
-        case ND_SHR: return eval_const(node->lhs) >> eval_const(node->rhs);
+        case ND_NEG: return -eval_const_with_msg(node->lhs, msg);
+        case ND_BITNOT: return ~eval_const_with_msg(node->lhs, msg);
+        case ND_ADD: return eval_const_with_msg(node->lhs, msg) + eval_const_with_msg(node->rhs, msg);
+        case ND_SUB: return eval_const_with_msg(node->lhs, msg) - eval_const_with_msg(node->rhs, msg);
+        case ND_MUL: return eval_const_with_msg(node->lhs, msg) * eval_const_with_msg(node->rhs, msg);
+        case ND_DIV: return eval_const_with_msg(node->lhs, msg) / eval_const_with_msg(node->rhs, msg);
+        case ND_MOD: return eval_const_with_msg(node->lhs, msg) % eval_const_with_msg(node->rhs, msg);
+        case ND_BITAND: return eval_const_with_msg(node->lhs, msg) & eval_const_with_msg(node->rhs, msg);
+        case ND_BITOR: return eval_const_with_msg(node->lhs, msg) | eval_const_with_msg(node->rhs, msg);
+        case ND_BITXOR: return eval_const_with_msg(node->lhs, msg) ^ eval_const_with_msg(node->rhs, msg);
+        case ND_SHL: return eval_const_with_msg(node->lhs, msg) << eval_const_with_msg(node->rhs, msg);
+        case ND_SHR: return eval_const_with_msg(node->lhs, msg) >> eval_const_with_msg(node->rhs, msg);
         default:
-            error_at(token->loc, "case value must be constant");
+            error_at(token->loc, msg);
             return 0;
     }
 }
@@ -898,14 +903,20 @@ static void parse_global_decl(void) {
                         token = token->next;
                         var->init_data = st->str;
                         var->init_len = st->str_len;
-                    } else if (token->kind == TK_NUM) {
-                        var->init_data = xcalloc(1, 2);
-                        var->init_data[0] = (char)(token->val & 0xFF);
-                        var->init_data[1] = (char)((token->val >> 8) & 0xFF);
-                        var->init_len = 2;
-                        token = token->next;
                     } else {
-                        error_at(token->loc, "unsupported initializer");
+                        long v = eval_const_with_msg(expr(), "initializer must be constant");
+                        if (ty->size == 1) {
+                            var->init_data = xcalloc(1, 1);
+                            var->init_data[0] = (char)(v & 0xFF);
+                            var->init_len = 1;
+                        } else if (ty->size == 2) {
+                            var->init_data = xcalloc(1, 2);
+                            var->init_data[0] = (char)(v & 0xFF);
+                            var->init_data[1] = (char)((v >> 8) & 0xFF);
+                            var->init_len = 2;
+                        } else {
+                            error_at(token->loc, "unsupported initializer");
+                        }
                     }
                     var->is_extern = 0;
                 }

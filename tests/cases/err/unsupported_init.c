@@ -1,1 +1,2 @@
-int x = y;
+int f(void);
+int x = f();

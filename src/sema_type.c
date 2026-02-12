@@ -2,6 +2,32 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
+static int count_args(Node *arg) {
+    int n = 0;
+    while (arg) {
+        n++;
+        arg = arg->next;
+    }
+    return n;
+}
+
+static int count_params(Obj *p) {
+    int n = 0;
+    while (p) {
+        n++;
+        p = p->next;
+    }
+    return n;
+}
+
+static int is_variadic_internal(const char *name) {
+    if (!name) return 0;
+    if (strcmp(name, "emitln") == 0) return 1;
+    if (strcmp(name, "error_at") == 0) return 1;
+    return 0;
+}
 
 void sema_add_type(Node *node) {
     if (!node || node->ty) return;
@@ -110,6 +136,16 @@ void sema_add_type(Node *node) {
         case ND_FUNCALL:
             if (node->lhs && node->lhs->ty) {
                 Type *fty = node->lhs->ty;
+                if (node->lhs->kind == ND_VAR && node->lhs->var && node->lhs->var->is_function &&
+                    node->lhs->var->body && node->lhs->var->params &&
+                    !is_variadic_internal(node->lhs->var->name)) {
+                    int argc = count_args(node->args);
+                    int nparam = count_params(node->lhs->var->params);
+                    if (argc != nparam) {
+                        fprintf(stderr, "argument count mismatch\n");
+                        exit(1);
+                    }
+                }
                 if (fty->kind == TY_PTR) fty = fty->base;
                 if (!fty || fty->kind != TY_FUNC) {
                     fprintf(stderr, "invalid function call\n");

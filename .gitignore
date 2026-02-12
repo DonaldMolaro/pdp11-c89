@@ -11,3 +11,4 @@ tests/sim_paths.txt
 tests/stage2.diff
 pdp11cc
 *.o
+.DS_Store

@@ -19,8 +19,177 @@ static Macro *macros;
 typedef struct Cond Cond;
 struct Cond {
     int active;
+    int matched;
     int seen_else;
 };
+
+static Macro *find_macro(const char *name, int len);
+static int is_ident1(int c);
+static int is_ident2(int c);
+static const char *pp_skip_ws(const char *p) {
+    while (*p == ' ' || *p == '\t') p++;
+    return p;
+}
+
+static void expand_macros_line(const char *line, char **out, size_t *len, size_t *cap);
+static long pp_parse_number(const char *p, const char **endp);
+
+static long pp_parse_expr_or(const char **pp);
+
+static long pp_parse_primary(const char **pp) {
+    const char *p = pp_skip_ws(*pp);
+    long v = 0;
+
+    if (*p == '(') {
+        p++;
+        v = pp_parse_expr_or(&p);
+        p = pp_skip_ws(p);
+        if (*p == ')') p++;
+        *pp = p;
+        return v;
+    }
+
+    if (strncmp(p, "defined", 7) == 0 && !is_ident2(p[7])) {
+        p += 7;
+        p = pp_skip_ws(p);
+        if (*p == '(') {
+            const char *start;
+            int len = 0;
+            p++;
+            p = pp_skip_ws(p);
+            start = p;
+            if (is_ident1(*p)) {
+                p++;
+                while (is_ident2(*p)) p++;
+                len = (int)(p - start);
+            }
+            p = pp_skip_ws(p);
+            if (*p == ')') p++;
+            *pp = p;
+            return find_macro(start, len) ? 1 : 0;
+        }
+        if (is_ident1(*p)) {
+            const char *start = p;
+            int len;
+            p++;
+            while (is_ident2(*p)) p++;
+            len = (int)(p - start);
+            *pp = p;
+            return find_macro(start, len) ? 1 : 0;
+        }
+        *pp = p;
+        return 0;
+    }
+
+    if (is_ident1(*p)) {
+        p++;
+        while (is_ident2(*p)) p++;
+        *pp = p;
+        return 0;
+    }
+
+    v = pp_parse_number(p, &p);
+    *pp = p;
+    return v;
+}
+
+static long pp_parse_unary(const char **pp) {
+    const char *p = pp_skip_ws(*pp);
+    if (*p == '!') {
+        p++;
+        *pp = p;
+        return !pp_parse_unary(pp);
+    }
+    return pp_parse_primary(pp);
+}
+
+static long pp_parse_expr_and(const char **pp) {
+    long v = pp_parse_unary(pp);
+    const char *p = pp_skip_ws(*pp);
+    while (p[0] == '&' && p[1] == '&') {
+        long rhs;
+        p += 2;
+        *pp = p;
+        rhs = pp_parse_unary(pp);
+        v = (v && rhs) ? 1 : 0;
+        p = pp_skip_ws(*pp);
+    }
+    *pp = p;
+    return v;
+}
+
+static long pp_parse_expr_or(const char **pp) {
+    long v = pp_parse_expr_and(pp);
+    const char *p = pp_skip_ws(*pp);
+    while (p[0] == '|' && p[1] == '|') {
+        long rhs;
+        p += 2;
+        *pp = p;
+        rhs = pp_parse_expr_and(pp);
+        v = (v || rhs) ? 1 : 0;
+        p = pp_skip_ws(*pp);
+    }
+    *pp = p;
+    return v;
+}
+
+static int eval_pp_expr(const char *expr) {
+    char *expanded = NULL;
+    size_t len = 0;
+    size_t cap = 0;
+    const char *p;
+    long v;
+
+    expand_macros_line(expr, &expanded, &len, &cap);
+    if (!expanded) return 0;
+    p = expanded;
+    v = pp_parse_expr_or(&p);
+    free(expanded);
+    return v != 0;
+}
+
+static long pp_parse_number(const char *p, const char **endp) {
+    long v = 0;
+    int base = 10;
+    const char *start = p;
+
+    if (*p == '0' && (p[1] == 'x' || p[1] == 'X')) {
+        base = 16;
+        p += 2;
+    }
+
+    while (*p) {
+        int d = -1;
+        if (*p >= '0' && *p <= '9') {
+            d = *p - '0';
+        } else if (base == 16 && *p >= 'a' && *p <= 'f') {
+            d = *p - 'a' + 10;
+        } else if (base == 16 && *p >= 'A' && *p <= 'F') {
+            d = *p - 'A' + 10;
+        } else {
+            break;
+        }
+        if (d >= base) break;
+        v = v * base + d;
+        p++;
+    }
+
+    if (p == start || (base == 16 && p == start + 2)) {
+        *endp = start;
+        return 0;
+    }
+
+    *endp = p;
+    return v;
+}
+
+static int parent_active(Cond *stack, int depth) {
+    int i;
+    for (i = 0; i < depth; i++) {
+        if (!stack[i].active) return 0;
+    }
+    return 1;
+}
 
 static char *read_file(const char *path) {
     FILE *fp = fopen(path, "r");
@@ -419,13 +588,7 @@ static char *preprocess_text(const char *text, const char *base_dir) {
         {
             size_t linelen = (size_t)(p - line);
             char *linebuf = strndup2(line, (int)linelen);
-            int active = 1;
-            if (cond_depth > 0) {
-                int i;
-                for (i = 0; i < cond_depth; i++) {
-                    if (!cond_stack[i].active) { active = 0; break; }
-                }
-            }
+            int active = parent_active(cond_stack, cond_depth);
             char *inc = handle_include(linebuf, base_dir);
             if (inc) {
                 if (active) {
@@ -446,26 +609,58 @@ static char *preprocess_text(const char *text, const char *base_dir) {
                     q++;
                     while (*q && (*q == ' ' || *q == '\t')) q++;
                     if (strncmp(q, "ifdef", 5) == 0) {
+                        int parent = parent_active(cond_stack, cond_depth);
                         q += 5;
                         while (*q && (*q == ' ' || *q == '\t')) q++;
                         if (cond_depth < 32) {
                             Macro *m = find_macro(q, (int)strlen(q));
-                            cond_stack[cond_depth].active = (m != NULL);
+                            cond_stack[cond_depth].active = parent && (m != NULL);
+                            cond_stack[cond_depth].matched = parent && (m != NULL);
                             cond_stack[cond_depth].seen_else = 0;
                             cond_depth++;
                         }
                     } else if (strncmp(q, "ifndef", 6) == 0) {
+                        int parent = parent_active(cond_stack, cond_depth);
                         q += 6;
                         while (*q && (*q == ' ' || *q == '\t')) q++;
                         if (cond_depth < 32) {
                             Macro *m = find_macro(q, (int)strlen(q));
-                            cond_stack[cond_depth].active = (m == NULL);
+                            cond_stack[cond_depth].active = parent && (m == NULL);
+                            cond_stack[cond_depth].matched = parent && (m == NULL);
                             cond_stack[cond_depth].seen_else = 0;
                             cond_depth++;
                         }
+                    } else if (strncmp(q, "if", 2) == 0 && !is_ident2(q[2])) {
+                        int parent = parent_active(cond_stack, cond_depth);
+                        int cond = 0;
+                        q += 2;
+                        while (*q && (*q == ' ' || *q == '\t')) q++;
+                        cond = eval_pp_expr(q);
+                        if (cond_depth < 32) {
+                            cond_stack[cond_depth].active = parent && cond;
+                            cond_stack[cond_depth].matched = parent && cond;
+                            cond_stack[cond_depth].seen_else = 0;
+                            cond_depth++;
+                        }
+                    } else if (strncmp(q, "elif", 4) == 0 && !is_ident2(q[4])) {
+                        if (cond_depth > 0 && !cond_stack[cond_depth - 1].seen_else) {
+                            int parent = parent_active(cond_stack, cond_depth - 1);
+                            int cond = 0;
+                            q += 4;
+                            while (*q && (*q == ' ' || *q == '\t')) q++;
+                            if (!cond_stack[cond_depth - 1].matched) {
+                                cond = eval_pp_expr(q);
+                                cond_stack[cond_depth - 1].active = parent && cond;
+                                if (cond_stack[cond_depth - 1].active) cond_stack[cond_depth - 1].matched = 1;
+                            } else {
+                                cond_stack[cond_depth - 1].active = 0;
+                            }
+                        }
                     } else if (strncmp(q, "else", 4) == 0) {
                         if (cond_depth > 0 && !cond_stack[cond_depth - 1].seen_else) {
-                            cond_stack[cond_depth - 1].active = !cond_stack[cond_depth - 1].active;
+                            int parent = parent_active(cond_stack, cond_depth - 1);
+                            cond_stack[cond_depth - 1].active = parent && !cond_stack[cond_depth - 1].matched;
+                            cond_stack[cond_depth - 1].matched = 1;
                             cond_stack[cond_depth - 1].seen_else = 1;
                         }
                     } else if (strncmp(q, "endif", 5) == 0) {

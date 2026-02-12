@@ -525,6 +525,9 @@ void gen_expr(CodegenContext *ctx, Node *node) {
 
             while (nargs--) {
                 gen_expr(ctx, args[nargs]);
+                if (args[nargs]->ty && args[nargs]->ty->kind == TY_CHAR) {
+                    emitln("    MOVB R0, R0");
+                }
                 emit_push("R0");
             }
             if (is_sret) {
