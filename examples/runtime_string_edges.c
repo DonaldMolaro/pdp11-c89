@@ -20,12 +20,22 @@ void print_int(int x) {
 int main(void) {
     char a[8];
     char b[8];
+    char n1[4];
+    char n2[4];
+    char big1[16];
+    char big2[16];
     int cmp1;
     int cmp2;
     int cmp3;
+    int ncmp;
+    int bcmp;
 
     memset(a, 0, 8);
     memset(b, 0, 8);
+    memset(n1, 0, 4);
+    memset(n2, 0, 4);
+    memset(big1, 0, 16);
+    memset(big2, 0, 16);
 
     strcpy(a, "ab");
     strcpy(b, "ac");
@@ -33,6 +43,19 @@ int main(void) {
     cmp1 = strcmp(a, b);
     cmp2 = memcmp(a, b, 1);
     cmp3 = memcmp(a, b, 2);
+
+    n1[0] = 'a';
+    n1[1] = 0;
+    n1[2] = 'b';
+    n2[0] = 'a';
+    n2[1] = 0;
+    n2[2] = 'c';
+    ncmp = memcmp(n1, n2, 3);
+
+    memset(big1, 'x', 16);
+    memcpy(big2, big1, 16);
+    big2[15] = 'y';
+    bcmp = memcmp(big1, big2, 16);
 
     puts("runtime_string_edges: len=");
     print_int((int)strlen(a));
@@ -48,6 +71,14 @@ int main(void) {
 
     puts("runtime_string_edges: memcmp2=");
     print_int(cmp3);
+    putchar('\n');
+
+    puts("runtime_string_edges: memcmp_nul=");
+    print_int(ncmp);
+    putchar('\n');
+
+    puts("runtime_string_edges: memcmp_big=");
+    print_int(bcmp);
     putchar('\n');
 
     return 0;

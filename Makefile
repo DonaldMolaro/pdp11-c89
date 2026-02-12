@@ -91,4 +91,7 @@ bootstrap: sim-paths pdp11cc
 		exit 1; \
 	fi
 
-.PHONY: clean stage-2-smoke examples sim-input sim-paths bootstrap
+negative-tests: pdp11cc
+	@sh tools/run_negative_tests.sh
+
+.PHONY: clean stage-2-smoke examples sim-input sim-paths bootstrap negative-tests

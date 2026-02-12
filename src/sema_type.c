@@ -111,17 +111,18 @@ void sema_add_type(Node *node) {
             if (node->lhs && node->lhs->ty) {
                 Type *fty = node->lhs->ty;
                 if (fty->kind == TY_PTR) fty = fty->base;
-                if (fty && fty->kind == TY_FUNC) {
-                    node->ty = fty->return_ty;
-                } else {
-                    node->ty = ty_int();
+                if (!fty || fty->kind != TY_FUNC) {
+                    fprintf(stderr, "invalid function call\n");
+                    exit(1);
                 }
+                node->ty = fty->return_ty;
                 return;
             }
             if (node->var && node->var->ty && node->var->ty->kind == TY_FUNC) {
                 node->ty = node->var->ty->return_ty;
             } else {
-                node->ty = ty_int();
+                fprintf(stderr, "invalid function call\n");
+                exit(1);
             }
             return;
         case ND_RETURN:
