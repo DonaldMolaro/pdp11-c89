@@ -210,7 +210,7 @@ void gen_expr(CodegenContext *ctx, Node *node) {
             return;
         case ND_VAR:
             gen_addr(ctx, node);
-            if (node->ty->kind == TY_ARRAY) return;
+            if (node->ty->kind == TY_ARRAY || node->ty->kind == TY_FUNC) return;
             load(node->ty);
             return;
         case ND_MEMBER:
@@ -502,9 +502,20 @@ void gen_expr(CodegenContext *ctx, Node *node) {
             Node *args[32];
             int is_sret = (node->ty->kind == TY_STRUCT || node->ty->kind == TY_UNION);
             int size = is_sret ? node->ty->size : 0;
+            int direct = 0;
+            const char *target = NULL;
 
             for (arg = node->args; arg; arg = arg->next) {
                 args[nargs++] = arg;
+            }
+
+            if (node->lhs && node->lhs->kind == ND_VAR &&
+                node->lhs->var && node->lhs->var->is_function) {
+                direct = 1;
+                target = node->lhs->var->asm_name;
+            } else if (node->var && node->var->is_function) {
+                direct = 1;
+                target = node->var->asm_name;
             }
 
             if (is_sret) {
@@ -520,7 +531,14 @@ void gen_expr(CodegenContext *ctx, Node *node) {
                 emitln("    MOV R2, R0");
                 emit_push("R0");
             }
-            emitln("    JSR R5, %s", node->var->asm_name);
+            if (direct) {
+                emitln("    JSR R5, %s", target);
+            } else if (node->lhs) {
+                gen_expr(ctx, node->lhs);
+                emitln("    JSR R5, (R0)");
+            } else {
+                emitln("    JSR R5, %s", node->var->asm_name);
+            }
             if (node->args) {
                 int count = 0;
                 for (arg = node->args; arg; arg = arg->next) count++;

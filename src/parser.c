@@ -395,10 +395,9 @@ static Node *postfix(void) {
                 if (cur != &head) expect(',');
                 cur = cur->next = expr();
             }
-            if (!node->var) error_at(token->loc, "invalid function call");
             {
-                Node *call = new_unary(ND_FUNCALL, NULL);
-                call->var = node->var;
+                Node *call = new_unary(ND_FUNCALL, node);
+                if (node->kind == ND_VAR) call->var = node->var;
                 call->args = head.next;
                 node = call;
             }

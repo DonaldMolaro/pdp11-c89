@@ -34,9 +34,9 @@ int main(void) {
     ops[1] = sub;
     u = neg;
 
-    sum = add(a, b);
-    diff = sub(a, b);
-    negv = neg(b);
+    sum = ops[0](a, b);
+    diff = ops[1](a, b);
+    negv = u(b);
 
     puts("typedef_funcptr: add");
     print_int(sum);

@@ -108,10 +108,21 @@ void sema_add_type(Node *node) {
             return;
         }
         case ND_FUNCALL:
-            if (node->var && node->var->ty && node->var->ty->kind == TY_FUNC)
+            if (node->lhs && node->lhs->ty) {
+                Type *fty = node->lhs->ty;
+                if (fty->kind == TY_PTR) fty = fty->base;
+                if (fty && fty->kind == TY_FUNC) {
+                    node->ty = fty->return_ty;
+                } else {
+                    node->ty = ty_int();
+                }
+                return;
+            }
+            if (node->var && node->var->ty && node->var->ty->kind == TY_FUNC) {
                 node->ty = node->var->ty->return_ty;
-            else
+            } else {
                 node->ty = ty_int();
+            }
             return;
         case ND_RETURN:
             node->ty = node->lhs ? node->lhs->ty : ty_void();
